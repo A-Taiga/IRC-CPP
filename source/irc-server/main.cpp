@@ -1,4 +1,8 @@
+#include <server.hpp>
 
-int main() {
+int main() 
+{
+    Server server("4000");
+    
     return 0;
 }
