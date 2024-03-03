@@ -36,13 +36,11 @@
 */
 #define ERROR(msg)                                                                             \
 	{                                                                                          \
-		std::cout << WHITE << __FILE__ << ":" << __LINE__ << RESET << ":"             \
+		std::cout << WHITE << __FILE__ << ":" << __LINE__ << RESET << ":"                      \
 		          << __PRETTY_FUNCTION__ << ":" << RED << "errno:" << RESET << strerror(errno) \
 		          << ":" << RED << msg << RESET << std::endl;                                  \
 		std::exit(EXIT_FAILURE);                                                               \
 	}
-
-
 
 Server::Server(const char* _port)
 : port(_port)
@@ -61,7 +59,7 @@ void Server::setup()
     hints.ai_family = AF_UNSPEC;        /* ipv4 or ipv6 */
     hints.ai_socktype = SOCK_STREAM;    /* socket type */
     hints.ai_flags = AI_PASSIVE;        /* choose ip for the server */
-    hints.ai_protocol = 0;              /* any protocol */
+    hints.ai_protocol = IPPROTO_TCP;    /* TCP protocol */
 
     status = getaddrinfo(nullptr,port.c_str(), &hints, &tempInfo);
     if (status != 0)
@@ -103,5 +101,5 @@ void Server::setup()
         ERROR("failed to bind");
 
     std::cout << GREEN << "success" << RESET << std::endl; 
-}   
+}
 
