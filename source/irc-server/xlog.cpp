@@ -9,40 +9,19 @@
 
 /*
 	logging for:
-		output - general messages
-		messages - messages sent by the users
-		error - errors that occured during the runtime
-		access - user lateral movemnt between channels or join
+	    output - general messages
+	    messages - messages sent by the users
+	    error - errors that occured during the runtime
+	    access - user lateral movemnt between channels or join
 */
 
 namespace xlog
 {
-	namespace
-	{
-		constexpr const std::string log_directory_name { "log" };
-		constexpr const std::string output_filename { "log/output.log" };
-		constexpr const std::string messages_filename { "log/message.log" };
-		constexpr const std::string error_filename { "log/error.log" };
-		constexpr const std::string access_filename { "log/access.log" };
-
-		/*
-			this function should serve as a macro
-		*/
-		static inline bool fstream_open(std::fstream& stream, const std::string& filename)
-		{
-			/* open the file witout reseting it */
-			stream.open(filename, std::ios_base::app);
-
-			if (false == stream.is_open())
-			{
-				std::cerr << "failed to open " << filename << "; error: {}" << std::strerror(errno) << std::endl;
-
-				return false;
-			}
-
-			return true;
-		}
-	}
+	static const char* log_directory_name { "log" };
+	static const char* output_filename { "log/output.log" };
+	static const char* messages_filename { "log/message.log" };
+	static const char* error_filename { "log/error.log" };
+	static const char* access_filename { "log/access.log" };
 
 	std::mutex output_mutex { };
 	std::mutex messages_mutex { };
@@ -52,6 +31,25 @@ namespace xlog
 	std::fstream messages_stream { };
 	std::fstream error_stream { };
 	std::fstream access_stream { };
+
+
+	/*
+	 this function should serve as a macro
+	*/
+	static inline bool fstream_open(std::fstream& stream, const std::string& filename)
+	{
+		/* open the file witout reseting it */
+		stream.open(filename, std::ios_base::app);
+
+		if (false == stream.is_open())
+		{
+			std::cerr << "failed to open " << filename << "; error: {}" << std::strerror(errno) << std::endl;
+
+			return false;
+		}
+
+		return true;
+	}
 	
 	bool initialize()
 	{
