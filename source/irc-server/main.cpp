@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include <filesystem>
 #include <server.hpp>
 #include <xlog.hpp>
@@ -19,7 +20,13 @@ namespace
 int main(int argc, char* args[])
 {
 	initialize_working_directory(args[0]);
-	xlog::initialize();
+	
+	if (!xlog::initialize())
+	{
+		std::abort();
+
+		return 1;
+	}
 
 	Server server("4000");
 
