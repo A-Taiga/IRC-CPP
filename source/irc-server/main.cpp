@@ -4,9 +4,9 @@
 #include <xlog.hpp>
 
 /*
- set the current path to where the executable is located
- in case someone starts the server from a different path
- it should be still able to load its files w/o loss
+  set the current path to where the executable is located
+  in case someone starts the server from a different path
+  it should be still able to load its files w/o loss
 */
 static void initialize_working_directory(std::string passed_path)
 {
