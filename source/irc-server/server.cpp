@@ -1,5 +1,4 @@
 #include "server.hpp"
-#include <asm-generic/socket.h>
 #include <netdb.h>
 #include <sys/socket.h>
 #include <sys/types.h>
