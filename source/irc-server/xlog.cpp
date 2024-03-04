@@ -3,27 +3,30 @@
 #include <ios>
 #include <iostream>
 #include <string>
+#include <string_view>
 #include <filesystem>
 #include <mutex>
 #include <fstream>
 
+using namespace std::literals::string_view_literals;
+
 /*
-	logging for:
-		output - general messages
-		messages - messages sent by the users
-		error - errors that occured during the runtime
-		access - user lateral movemnt between channels or join
+  logging for:
+  1. output - general messages
+  2. messages - messages sent by the users
+  3. error - errors that occured during the runtime
+  4. access - user lateral movemnt between channels or join
 */
 
 namespace xlog
 {
 	namespace
 	{
-		constexpr const std::string log_directory_name { "log" };
-		constexpr const std::string output_filename { "log/output.log" };
-		constexpr const std::string messages_filename { "log/message.log" };
-		constexpr const std::string error_filename { "log/error.log" };
-		constexpr const std::string access_filename { "log/access.log" };
+		constexpr const std::string_view log_directory_name { "log"sv };
+		constexpr const std::string_view output_filename { "log/output.log"sv };
+		constexpr const std::string_view messages_filename { "log/message.log"sv };
+		constexpr const std::string_view error_filename { "log/error.log"sv };
+		constexpr const std::string_view access_filename { "log/access.log"sv };
 
 		/*
 			this function should serve as a macro
@@ -72,23 +75,29 @@ namespace xlog
 			}
 		}
 
+		const std::string _log_directory_name(log_directory_name);
+		const std::string _output_filename(output_filename);
+		const std::string _messages_filename(messages_filename);
+		const std::string _error_filename(error_filename);
+		const std::string _access_filename(access_filename);
+
 		/* initialize the streams */
-		if (false == xlog::fstream_open(xlog::output_stream, xlog::output_filename))
+		if (false == xlog::fstream_open(xlog::output_stream, _output_filename))
 		{
 			return false;
 		}
 
-		if (false == xlog::fstream_open(xlog::messages_stream, xlog::messages_filename))
+		if (false == xlog::fstream_open(xlog::messages_stream, _messages_filename))
 		{
 			return false;
 		}
 
-		if (false == xlog::fstream_open(xlog::error_stream, xlog::error_filename))
+		if (false == xlog::fstream_open(xlog::error_stream, _error_filename))
 		{
 			return false;   
 		}
 
-		if (false == xlog::fstream_open(xlog::access_stream, xlog::access_filename))
+		if (false == xlog::fstream_open(xlog::access_stream, _access_filename))
 		{
 			return false;
 		}
