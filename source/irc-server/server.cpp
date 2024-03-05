@@ -62,7 +62,7 @@ namespace Server
     namespace
     {
         std::string port;
-        static fd_type listenSocket;
+        fd_type listenSocket;
         fd_type testFD;
         void setup();
     };
