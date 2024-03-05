@@ -129,6 +129,7 @@ namespace
             ERROR("failed to bind");
     }
 }
+    /* current implementation for testing only */
     void listen(int queueSize)
     {
         int s = ::listen(listenSocket, queueSize);
