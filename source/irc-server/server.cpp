@@ -41,7 +41,7 @@
 
 
 
-File_descriptor::File_descriptor(){}
+File_descriptor::File_descriptor(): fd(-1){}
 File_descriptor::File_descriptor(int _fd): fd(_fd){}
 File_descriptor::~File_descriptor() 
 {
@@ -51,7 +51,6 @@ File_descriptor::~File_descriptor()
 
 File_descriptor& File_descriptor::operator=(File_descriptor&& other) noexcept
 {
-    fd = -1;
     std::swap(other.fd, fd);
     return *this;
 }
