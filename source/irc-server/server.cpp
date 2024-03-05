@@ -40,13 +40,6 @@
 	}
 
 
-#ifdef KQUEUE
-void event_handler()
-{
-
-}
-#endif
-
 
 File_descriptor::File_descriptor(){}
 File_descriptor::File_descriptor(int _fd): fd(_fd){}
@@ -55,6 +48,7 @@ File_descriptor::~File_descriptor()
     if (fd != -1) 
         close (fd);
 }
+
 File_descriptor& File_descriptor::operator=(File_descriptor&& other) noexcept
 {
     fd = -1;
