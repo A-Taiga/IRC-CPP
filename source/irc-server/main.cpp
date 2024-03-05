@@ -18,7 +18,7 @@ static void initialize_working_directory(std::string passed_path)
 static bool check_port_number(const char* port)
 {
 	for (size_t i = 0; i < strlen(port); i++)
-		if (std::isdigit(port[i]))
+		if (!std::isdigit(port[i]))
 			return false;
 	return true;
 }
@@ -42,8 +42,9 @@ int main(int argc, char* args[])
 	if (!check_port_number(args[1]))
 		std::cout << "PORT NOT A VALID NUMBER" << std::endl;
 
-
-	Server server("1000");
+	Server server(args[1]);
+	server.listen(10);
+	server.run();
 
 	return 0;
 }

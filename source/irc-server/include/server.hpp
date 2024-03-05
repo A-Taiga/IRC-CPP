@@ -4,12 +4,15 @@
 class Server
 {
     public:
-    Server(const char* port);
-    ~Server();
+    Server (const char* port);
+    ~Server ();
+    void run ();
+    void listen (int qSize);
     private:
     std::string port;
     int listenSocket;
-    void setup();
+    void setup ();
+    void accept ();
 };
 
 
