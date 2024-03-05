@@ -5,6 +5,7 @@ class Server
 {
     public:
     Server(const char* _port);
+    ~Server();
     private:
     std::string port;
     int listenSocket;

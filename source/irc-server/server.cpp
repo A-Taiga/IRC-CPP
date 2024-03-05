@@ -26,8 +26,6 @@
 #define B_CYAN     "\x1B[46;1m"
 #define B_WHITE    "\x1B[47;1m"
 
-
-
 /*
     REPLACE ERROR
     maybe with try catch blocks? 
@@ -101,4 +99,10 @@ void Server::setup()
 
     std::cout << GREEN << "success" << RESET << std::endl; 
 }
+
+Server::~Server()
+{
+    close(listenSocket);
+}
+
 

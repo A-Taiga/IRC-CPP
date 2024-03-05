@@ -8,6 +8,7 @@
   in case someone starts the server from a different path
   it should be still able to load its files w/o loss
 */
+
 static void initialize_working_directory(std::string passed_path)
 {
 	std::filesystem::path working_path(passed_path);
