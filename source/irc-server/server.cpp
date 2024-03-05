@@ -1,43 +1,13 @@
 #include "server.hpp"
+#include <__utility/integer_sequence.h>
 #include <netdb.h>
+#include <stdexcept>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <iostream>
 #include <cstring>
-
-#define CLEAR   "\e[2J\e[3J\e[H"
-#define BLACK   "\x1B[30;1m"
-#define RED     "\x1B[31;1m"
-#define GREEN   "\x1B[32;1m"
-#define YELLOW  "\x1B[33;1m"
-#define BLUE    "\x1B[34;1m"
-#define MAGENTA "\x1B[35;1m"
-#define CYAN    "\x1B[36;1m"
-#define WHITE   "\x1B[37;1m"
-#define RESET   "\x1B[0m"
-
-#define B_BLACK    "\x1B[40;1m"
-#define B_RED      "\x1B[41;1m"
-#define B_GREEN    "\x1B[42;1m"
-#define B_YELLOW   "\x1B[43;1m"
-#define B_BLUE     "\x1B[44;1m"
-#define B_MAGENTA  "\x1B[45;1m"
-#define B_CYAN     "\x1B[46;1m"
-#define B_WHITE    "\x1B[47;1m"
-
-/*
-    REPLACE ERROR
-    maybe with try catch blocks? 
-    to handle the errors
-*/
-#define ERROR(msg)                                                                             \
-	{                                                                                          \
-		std::cout << WHITE << __FILE__ << ":" << __LINE__ << RESET << ":"                      \
-		          << __PRETTY_FUNCTION__ << ":" << RED << "errno:" << RESET << strerror(errno) \
-		          << ":" << RED << msg << RESET << std::endl;                                  \
-		std::exit(EXIT_FAILURE);                                                               \
-	}
+#include <format>
 
 Server::Server(const char* _port)
 : port(_port)
@@ -60,8 +30,8 @@ void Server::setup()
 
     status = getaddrinfo(nullptr,port.c_str(), &hints, &tempInfo);
     if (status != 0)
-        std::cerr << __FUNCTION__ << " " << gai_strerror(status) << std::endl;
-    
+        throw std::runtime_error(std::format("{} : {}", __LINE__, gai_strerror(status)));
+
     serverInfo = tempInfo;
     while (serverInfo != nullptr)
     {
@@ -70,7 +40,7 @@ void Server::setup()
                             , serverInfo->ai_protocol);
         
         if (listenSocket == -1)
-            ERROR("socket()");
+            throw std::runtime_error(std::format("{} : {}", __LINE__, std::strerror(errno)));
 
         status = setsockopt(listenSocket
                             , SOL_SOCKET
@@ -78,9 +48,10 @@ void Server::setup()
                             , &option
                             , sizeof(option));
         if (status == -1)
-            ERROR("setsockopt()");
+            throw std::runtime_error(std::format("{} : {}", __LINE__, std::strerror(errno)));
         
         status = bind(listenSocket, serverInfo->ai_addr, serverInfo->ai_addrlen);
+        
         if (status == -1)
         {
             close(listenSocket);
@@ -95,9 +66,7 @@ void Server::setup()
 
     freeaddrinfo(tempInfo);
     if (serverInfo == nullptr)
-        ERROR("failed to bind");
-
-    std::cout << GREEN << "success" << RESET << std::endl; 
+        throw std::runtime_error("failed to bind");
 }
 
 Server::~Server()

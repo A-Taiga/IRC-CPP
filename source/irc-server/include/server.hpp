@@ -4,7 +4,7 @@
 class Server
 {
     public:
-    Server(const char* _port);
+    Server(const char* port);
     ~Server();
     private:
     std::string port;
