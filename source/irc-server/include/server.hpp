@@ -23,23 +23,4 @@ namespace Server
     void listen(int queueSize);
 };
 
-
-// class Server
-// {
-//     public:
-//     Server(const char* _port);
-//     void listen(int queueSize);
-//     ~Server();
-//     private:
-//     std::string port;
-//     int listenSocket;
-//     int testFD;
-//     void setup();
-// };
-
-
-
-
-
-
 #endif
