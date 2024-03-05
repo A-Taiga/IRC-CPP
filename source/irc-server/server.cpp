@@ -1,5 +1,4 @@
 #include "server.hpp"
-#include <asm-generic/socket.h>
 #include <netdb.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -27,8 +26,6 @@
 #define B_CYAN     "\x1B[46;1m"
 #define B_WHITE    "\x1B[47;1m"
 
-
-
 /*
     REPLACE ERROR
     maybe with try catch blocks? 
@@ -42,64 +39,121 @@
 		std::exit(EXIT_FAILURE);                                                               \
 	}
 
-Server::Server(const char* _port)
-: port(_port)
+
+#ifdef KQUEUE
+void event_handler()
 {
-    setup();
+
+}
+#endif
+
+
+File_descriptor::File_descriptor(){}
+File_descriptor::File_descriptor(int _fd): fd(_fd){}
+File_descriptor::~File_descriptor() 
+{
+    if (fd != -1) 
+        close (fd);
+}
+File_descriptor& File_descriptor::operator=(File_descriptor&& other) noexcept
+{
+    fd = -1;
+    std::swap(other.fd, fd);
+    return *this;
 }
 
-void Server::setup()
+namespace Server
 {
-    const int option = 1;
-    int status = 0;
-    addrinfo* tempInfo = {nullptr};
-    addrinfo* serverInfo = {nullptr};
-    addrinfo hints = {};
 
-    hints.ai_family = AF_UNSPEC;        /* ipv4 or ipv6 */
-    hints.ai_socktype = SOCK_STREAM;    /* socket type */
-    hints.ai_flags = AI_PASSIVE;        /* choose ip for the server */
-    hints.ai_protocol = IPPROTO_TCP;    /* TCP protocol */
-
-    status = getaddrinfo(nullptr,port.c_str(), &hints, &tempInfo);
-    if (status != 0)
-        std::cerr << __FUNCTION__ << " " << gai_strerror(status) << std::endl;
-    
-    serverInfo = tempInfo;
-    while (serverInfo != nullptr)
+    namespace
     {
-        listenSocket = socket(serverInfo->ai_family
-                            , serverInfo->ai_socktype
-                            , serverInfo->ai_protocol);
-        
-        if (listenSocket == -1)
-            ERROR("socket()");
+        std::string port;
+        static fd_type listenSocket;
+        fd_type testFD;
+        void setup();
+    };
 
-        status = setsockopt(listenSocket
-                            , SOL_SOCKET
-                            , SO_REUSEADDR
-                            , &option
-                            , sizeof(option));
-        if (status == -1)
-            ERROR("setsockopt()");
-        
-        status = bind(listenSocket, serverInfo->ai_addr, serverInfo->ai_addrlen);
-        if (status == -1)
-        {
-            close(listenSocket);
-            std::cerr << "server bind: " << std::strerror(errno) << std::endl;
-            continue;
-        }
-        else
-            break;
-
-        serverInfo = serverInfo->ai_next;
+    void Server(const char* _port)
+    {
+        port = _port;
+        setup();
     }
 
-    freeaddrinfo(tempInfo);
-    if (serverInfo == nullptr)
-        ERROR("failed to bind");
+namespace
+{
+    void setup()
+    {
+        const int option      = 1;
+        int status            = 0;
+        addrinfo* tempInfo    = {};
+        addrinfo* serverInfo  = {};
+        addrinfo hints        = {};
 
-    std::cout << GREEN << "success" << RESET << std::endl; 
+        hints.ai_family     = AF_UNSPEC;      /* ipv4 or ipv6 */
+        hints.ai_socktype   = SOCK_STREAM;    /* socket type */
+        hints.ai_flags      = AI_PASSIVE;     /* choose ip for the server */
+        hints.ai_protocol   = IPPROTO_TCP;    /* TCP protocol */
+
+        status = getaddrinfo(nullptr,port.c_str(), &hints, &tempInfo);
+        if (status != 0)
+            std::cerr << __FUNCTION__ << " " << gai_strerror(status) << std::endl;
+        
+        serverInfo = tempInfo;
+        while (serverInfo != nullptr)
+        {
+
+            
+            listenSocket = socket(serverInfo->ai_family
+                                , serverInfo->ai_socktype
+                                , serverInfo->ai_protocol);
+            if (listenSocket == -1)
+                ERROR("socket()");
+                
+            status = setsockopt(listenSocket
+                                , SOL_SOCKET
+                                , SO_REUSEADDR
+                                , &option
+                                , sizeof(option));
+            if (status == -1)
+                ERROR("setsockopt()");
+            
+            status = bind(listenSocket, serverInfo->ai_addr, serverInfo->ai_addrlen);
+            if (status == -1)
+            {
+                close(listenSocket);
+                std::cerr << "server bind: " << std::strerror(errno) << std::endl;
+                continue;
+            }
+            else
+                break;
+
+            serverInfo = serverInfo->ai_next;
+        }
+
+        freeaddrinfo(tempInfo);
+        if (serverInfo == nullptr)
+            ERROR("failed to bind");
+    }
 }
+    void listen(int queueSize)
+    {
+        int s = ::listen(listenSocket, queueSize);
+        if (s == -1)
+            ERROR("listen()");
+        std::cout << GREEN << "server started" << RESET << std::endl;
+
+
+        sockaddr_in testAddr = {};
+        socklen_t clinetLength = 0;
+        testFD = accept(listenSocket, (struct sockaddr*)&testAddr, (socklen_t*) &clinetLength);
+        if (testFD == -1)
+            ERROR("accept()");
+
+        puts("HI");
+        char buffer[1024];
+        ::recv(listenSocket, buffer, sizeof(buffer), MSG_WAITALL);
+        std::cout << buffer << std::endl;
+    }
+
+};
 

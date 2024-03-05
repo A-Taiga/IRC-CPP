@@ -24,8 +24,8 @@ int main(int argc, char* args[])
 
 		return 1;
 	}
-
-	Server server("4000");
+	Server::Server("4000");
+	Server::listen(10);
 
 	return 0;
 }
