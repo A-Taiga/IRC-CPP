@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <server.hpp>
 #include <xlog.hpp>
