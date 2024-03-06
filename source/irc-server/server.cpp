@@ -1,10 +1,16 @@
 #include "server.hpp"
 #include <netdb.h>
+#include <netinet/in.h>
+#include <stdexcept>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <type_traits>
 #include <unistd.h>
+#include <arpa/inet.h>
 #include <iostream>
 #include <cstring>
+#include <format>
+
 
 #define CLEAR   "\e[2J\e[3J\e[H"
 #define BLACK   "\x1B[30;1m"
@@ -28,26 +34,41 @@
 
 
 
-/*
-    REPLACE ERROR
-    maybe with try catch blocks? 
-    to handle the errors
-*/
-#define ERROR(msg)                                                                             \
-	{                                                                                          \
-		std::cout << WHITE << __FILE__ << ":" << __LINE__ << RESET << ":"                      \
-		          << __PRETTY_FUNCTION__ << ":" << RED << "errno:" << RESET << strerror(errno) \
-		          << ":" << RED << msg << RESET << std::endl;                                  \
-		std::exit(EXIT_FAILURE);                                                               \
-	}
+namespace
+{
+    void* in_addr (sockaddr* sa)
+    {
+        switch (sa->sa_family)
+        {
+            case AF_INET:   return &(reinterpret_cast<sockaddr_in*> (sa) -> sin_addr);
+            case AF_INET6:  return &(reinterpret_cast<sockaddr_in6*> (sa) -> sin6_addr);
+            default:        throw std::runtime_error(std::format("not ipv4 or ipv6 : {} : {}", __LINE__, __PRETTY_FUNCTION__));
+        }
+    }
 
-Server::Server(const char* _port)
+    std::string address (sockaddr_storage& client)
+    {
+        std::string address (INET6_ADDRSTRLEN, '\0');
+        inet_ntop (client.ss_family
+                    , in_addr(reinterpret_cast<sockaddr*> (&client))
+                    , address.data()
+                    , address.length());
+        return address;
+    }
+}
+
+Server::Server (const char* _port)
 : port(_port)
 {
     setup();
 }
 
-void Server::setup()
+Server::~Server ()
+{
+    close(listenSocket);
+}
+
+void Server::setup ()
 {
     const int option = 1;
     int status = 0;
@@ -60,10 +81,10 @@ void Server::setup()
     hints.ai_flags = AI_PASSIVE;        /* choose ip for the server */
     hints.ai_protocol = IPPROTO_TCP;    /* TCP protocol */
 
-    status = getaddrinfo(nullptr,port.c_str(), &hints, &tempInfo);
+    status = getaddrinfo(nullptr, port.c_str(), &hints, &tempInfo);
     if (status != 0)
-        std::cerr << __FUNCTION__ << " " << gai_strerror(status) << std::endl;
-    
+        throw std::runtime_error(std::format("Line: {} : {}", __LINE__, gai_strerror(status)));
+
     serverInfo = tempInfo;
     while (serverInfo != nullptr)
     {
@@ -72,7 +93,7 @@ void Server::setup()
                             , serverInfo->ai_protocol);
         
         if (listenSocket == -1)
-            ERROR("socket()");
+            throw std::runtime_error(std::format("Line: {} : {}", __LINE__, std::strerror(errno)));
 
         status = setsockopt(listenSocket
                             , SOL_SOCKET
@@ -80,9 +101,10 @@ void Server::setup()
                             , &option
                             , sizeof(option));
         if (status == -1)
-            ERROR("setsockopt()");
+            throw std::runtime_error(std::format("Line: {} : {}", __LINE__, std::strerror(errno)));
         
         status = bind(listenSocket, serverInfo->ai_addr, serverInfo->ai_addrlen);
+        
         if (status == -1)
         {
             close(listenSocket);
@@ -97,8 +119,48 @@ void Server::setup()
 
     freeaddrinfo(tempInfo);
     if (serverInfo == nullptr)
-        ERROR("failed to bind");
-
-    std::cout << GREEN << "success" << RESET << std::endl; 
+        throw std::runtime_error("failed to bind");
+    
+    std::cout << GREEN << "server started" << RESET << std::endl;
 }
 
+void Server::run ()
+{
+    accept();
+}
+
+void Server::listen (int qSize)
+{
+    if (::listen(listenSocket, qSize) == -1)
+        throw std::runtime_error(std::format("Line: {} : {}", __LINE__, std::strerror(errno)));
+    std::cout << GREEN << "server is listening on port: " << WHITE << port << RESET << std::endl;
+}
+
+void Server::accept ()
+{
+    std::string clientAddress = {};
+    sockaddr_storage connection = {};
+    socklen_t connectionSize = 0;
+    int clientFd = 0;
+
+    connectionSize = sizeof(connection);
+    clientFd = ::accept (listenSocket
+                        , reinterpret_cast<sockaddr*>(&connection)
+                        , &connectionSize);
+
+    try
+    {
+        if (clientFd == -1)
+            throw std::runtime_error(std::format("Line: {} : {}", __LINE__, std::strerror(errno)));
+    } 
+    catch (std::runtime_error& e)
+    {
+        std::cout << e.what() << std::endl;
+    }
+
+    clientAddress = address(connection);
+    std::cout << clientAddress << std::endl;
+
+    /* TEMP REMOVE after finishing the event system */
+    close(clientFd);
+}
