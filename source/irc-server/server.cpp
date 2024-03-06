@@ -1,9 +1,7 @@
 #include "server.hpp"
-#include <__utility/integer_sequence.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <stdexcept>
-#include <sys/_types/_socklen_t.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <type_traits>
@@ -34,13 +32,7 @@
 #define B_CYAN     "\x1B[46;1m"
 #define B_WHITE    "\x1B[47;1m"
 
-#ifdef __linux__
-    #include <sys/epoll.h>
-    #define EPOLL
-#elif __APPLE__
-    #include <sys/event.h>
-    #define KQUEUE
-#endif
+
 
 namespace
 {
@@ -63,18 +55,6 @@ namespace
                     , address.length());
         return address;
     }
-
-    #ifdef EPOLL
-        void events()
-        {
-
-        }
-    #elif defined(KQUEUE)
-        void events()
-        {
-            
-        }
-    #endif
 }
 
 Server::Server (const char* _port)
@@ -181,6 +161,6 @@ void Server::accept ()
     clientAddress = address(connection);
     std::cout << clientAddress << std::endl;
 
-    /* TEMP REMOVE */
+    /* TEMP REMOVE after finishing the event system */
     close(clientFd);
 }
