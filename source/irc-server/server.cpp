@@ -1,16 +1,11 @@
 #include "server.hpp"
-#include "kqueue.hpp"
 #include <netdb.h>
 #include <netinet/in.h>
-#include <stdexcept>
 #include <sys/event.h>
 #include <sys/socket.h>
-#include <sys/types.h>
-#include <type_traits>
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <iostream>
-#include <cstring>
 #include <format>
 
 #define CLEAR   "\e[2J\e[3J\e[H"
