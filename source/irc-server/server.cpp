@@ -1,16 +1,12 @@
 #include "server.hpp"
 #include <netdb.h>
 #include <netinet/in.h>
-#include <stdexcept>
+#include <sys/event.h>
 #include <sys/socket.h>
-#include <sys/types.h>
-#include <type_traits>
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <iostream>
-#include <cstring>
 #include <format>
-
 
 #define CLEAR   "\e[2J\e[3J\e[H"
 #define BLACK   "\x1B[30;1m"
@@ -31,7 +27,6 @@
 #define B_MAGENTA  "\x1B[45;1m"
 #define B_CYAN     "\x1B[46;1m"
 #define B_WHITE    "\x1B[47;1m"
-
 
 
 namespace
@@ -61,6 +56,8 @@ Server::Server (const char* _port)
 : port(_port)
 {
     setup();
+    static Udata data = {[&](){accept();}, FD_types::SOCKET};
+    kq.monitor(listenSocket, EVFILT_READ, &data, EV_ADD | EV_ENABLE, 0);
 }
 
 Server::~Server ()
@@ -122,11 +119,16 @@ void Server::setup ()
         throw std::runtime_error("failed to bind");
     
     std::cout << GREEN << "server started" << RESET << std::endl;
+
 }
 
 void Server::run ()
 {
-    accept();
+    // accept();
+    while (true)
+    {
+        kq.handle_events();
+    }
 }
 
 void Server::listen (int qSize)
