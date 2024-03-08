@@ -26,6 +26,8 @@ private:
     int listenSocket;
     void setup ();
     void accept ();
+    void client_callback(struct kevent* event);
+    void server_callback (struct kevent* event);
 };
 
 

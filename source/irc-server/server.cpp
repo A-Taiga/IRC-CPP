@@ -1,6 +1,8 @@
 #include "server.hpp"
+#include "kqueue.hpp"
 #include <netdb.h>
 #include <netinet/in.h>
+#include <strings.h>
 #include <sys/event.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -44,10 +46,7 @@ namespace
     std::string address (sockaddr_storage& client)
     {
         std::string address (INET6_ADDRSTRLEN, '\0');
-        inet_ntop (client.ss_family
-                    , in_addr(reinterpret_cast<sockaddr*> (&client))
-                    , address.data()
-                    , address.length());
+        inet_ntop (client.ss_family, in_addr(reinterpret_cast<sockaddr*> (&client)), address.data(), address.length());
         return address;
     }
 }
@@ -56,8 +55,9 @@ Server::Server (const char* _port)
 : port(_port)
 {
     setup();
-    static Udata data = {[&](){accept();}, FD_types::SOCKET};
-    kq.monitor(listenSocket, EVFILT_READ, &data, EV_ADD | EV_ENABLE, 0);
+
+    static Udata data = {[&](struct kevent* event){this->server_callback(event);}, Tag::SOCKET};
+    kq.add_fd(listenSocket, EVFILT_READ, &data, EV_ADD | EV_ENABLE, 0);
 }
 
 Server::~Server ()
@@ -85,32 +85,22 @@ void Server::setup ()
     serverInfo = tempInfo;
     while (serverInfo != nullptr)
     {
-        listenSocket = socket(serverInfo->ai_family
-                            , serverInfo->ai_socktype
-                            , serverInfo->ai_protocol);
-        
+        listenSocket = socket(serverInfo->ai_family, serverInfo->ai_socktype, serverInfo->ai_protocol);
         if (listenSocket == -1)
             throw std::runtime_error(std::format("Line: {} : {}", __LINE__, std::strerror(errno)));
 
-        status = setsockopt(listenSocket
-                            , SOL_SOCKET
-                            , SO_REUSEADDR
-                            , &option
-                            , sizeof(option));
+        status = setsockopt(listenSocket, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option));
         if (status == -1)
             throw std::runtime_error(std::format("Line: {} : {}", __LINE__, std::strerror(errno)));
         
         status = bind(listenSocket, serverInfo->ai_addr, serverInfo->ai_addrlen);
-        
         if (status == -1)
         {
             close(listenSocket);
             std::cerr << "server bind: " << std::strerror(errno) << std::endl;
             continue;
         }
-        else
-            break;
-
+        else break;
         serverInfo = serverInfo->ai_next;
     }
 
@@ -118,16 +108,16 @@ void Server::setup ()
     if (serverInfo == nullptr)
         throw std::runtime_error("failed to bind");
     
-    std::cout << GREEN << "server started" << RESET << std::endl;
+    std::cout << GREEN << "server bound" << RESET << std::endl;
 
 }
 
 void Server::run ()
 {
-    // accept();
     while (true)
     {
         kq.handle_events();
+        std::cout << "HI" << std::endl;
     }
 }
 
@@ -143,12 +133,11 @@ void Server::accept ()
     std::string clientAddress = {};
     sockaddr_storage connection = {};
     socklen_t connectionSize = 0;
+    auto callBack = [&](auto&& event) {this->client_callback(event);};
     int clientFd = 0;
 
     connectionSize = sizeof(connection);
-    clientFd = ::accept (listenSocket
-                        , reinterpret_cast<sockaddr*>(&connection)
-                        , &connectionSize);
+    clientFd = ::accept (listenSocket, reinterpret_cast<sockaddr*>(&connection), &connectionSize);
 
     try
     {
@@ -162,7 +151,41 @@ void Server::accept ()
 
     clientAddress = address(connection);
     std::cout << clientAddress << std::endl;
+    static Udata data = {callBack, Tag::SOCKET};
+    kq.add_fd(clientFd, EVFILT_READ, &data, EV_ADD, 0);
+}
 
-    /* TEMP REMOVE after finishing the event system */
-    close(clientFd);
+void Server::client_callback (struct kevent* event)
+{
+    std::cout << "CLIENT ";
+        if (event->flags & EV_ERROR)
+        {
+            std::cout << std::strerror(errno) << std::endl;
+        }
+        else if (event->flags & EV_EOF)
+        {
+            kq.remove_fd(event->ident);
+            std::cout << "DISSCONNECTED" << std::endl;
+        }
+        else if (event->flags & EV_ADD)
+        {
+            char buffer[1024];
+            bzero(buffer, sizeof(buffer));
+            std::cout << "SENDING DATA" << std::endl;
+            ::recv(event->ident, buffer, sizeof(buffer), 0);
+            std::cout << buffer;
+        }
+}
+
+void Server::server_callback (struct kevent* event)
+{
+    std::cout << "SOCKET EVENT" << std::endl;
+    if (event->flags & EV_ERROR)
+    {
+        std::cout << std::strerror(errno) << std::endl;
+    }
+    else
+    {
+        accept();
+    }
 }
