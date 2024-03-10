@@ -40,7 +40,6 @@ enum class Type: short
     USER,
 };
 
-
 struct Udata
 {
     std::function<void(struct kevent*)> callback;
@@ -67,7 +66,6 @@ class Kqueue
         void register_user_event (identifier ident, unsigned short flags, unsigned int fflags, Udata& data);
         void unregister_user_event (identifier ident);
         void update_user_event(identifier ident, unsigned short flags, unsigned int fflags, Udata& data);
-
         void handle_events ();
 };
 
@@ -77,5 +75,4 @@ class Kqueue
 look into EV_DISPATCH
 close everything on SIGINT
 move EV_EOF back into this class
-
 */
