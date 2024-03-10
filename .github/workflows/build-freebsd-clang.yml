@@ -14,8 +14,15 @@ jobs:
     - uses: actions/checkout@v3
       with:
         fetch-depth: 0
-  rsync:
+  clean:
     needs: [checkout]
+    runs-on: self-hosted
+    steps:
+    - name: Run CMake
+      run: |
+        sshpass -p Password1@ ssh root@192.168.1.102 "rf -rf && mkdir -p build"
+  rsync:
+    needs: [clean]
     runs-on: self-hosted
     steps:
     - name: Rsync with FreeBSD
@@ -27,7 +34,7 @@ jobs:
     steps:
     - name: Run CMake
       run: |
-        sshpass -p Password1@ ssh root@192.168.1.102 "mkdir -p build && cd build && cmake .."
+        sshpass -p Password1@ ssh root@192.168.1.102 "cd build && cmake .."
   compile:
     needs: [cmake]
     runs-on: self-hosted
