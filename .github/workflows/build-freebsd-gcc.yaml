@@ -14,22 +14,22 @@ jobs:
     - uses: actions/checkout@v3
       with:
         fetch-depth: 0
-  rsync:
+  clean:
     needs: [checkout]
-    runs-on: self-hosted
-    steps:
-    - name: Rsync with FreeBSD
-      run: |
-        sshpass -p Password1@ rsync -av $GITHUB_WORKSPACE/ root@192.168.1.102:/root/repo
-  create_build_directory:
-    needs: [rsync]
     runs-on: self-hosted
     steps:
     - name: Create Build directory
       run: |
         sshpass -p Password1@ ssh root@192.168.1.102 "rm -rf /root/repo/* && mkdir -p /root/repo/build"
+  rsync:
+    needs: [clean]
+    runs-on: self-hosted
+    steps:
+    - name: Rsync with FreeBSD
+      run: |
+        sshpass -p Password1@ rsync -av $GITHUB_WORKSPACE/ root@192.168.1.102:/root/repo
   cmake:
-    needs: [create_build_directory]
+    needs: [rsync]
     runs-on: self-hosted
     steps:
     - name: Run CMake
