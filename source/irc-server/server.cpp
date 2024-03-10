@@ -49,7 +49,6 @@ namespace
         inet_ntop (client.ss_family, in_addr(reinterpret_cast<sockaddr*> (&client)), address.data(), address.length());
         return address;
     }
-
 }
 
 Server::Server (const char* _port)

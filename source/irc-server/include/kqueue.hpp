@@ -28,7 +28,9 @@ enum class EVFILT: short
     PROC        = EVFILT_PROC,
     SIGNAL      = EVFILT_SIGNAL,
     TIMER       = EVFILT_TIMER,
-    MACHPORT    = EVFILT_MACHPORT,
+    #if defined(__APPLE__)
+        MACHPORT    = EVFILT_MACHPORT,
+    #endif
     FS          = EVFILT_FS,
     VM          = EVFILT_VM,
     EXCEPT      = EVFILT_EXCEPT,
