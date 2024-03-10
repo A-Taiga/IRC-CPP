@@ -27,7 +27,7 @@ jobs:
     steps:
     - name: Create Build directory
       run: |
-        sshpass -p Password1@ ssh root@192.168.1.102 "mkdir -p /root/repo/build"
+        sshpass -p Password1@ ssh root@192.168.1.102 "rm -rf /root/repo/* && mkdir -p /root/repo/build"
   cmake:
     needs: [create_build_directory]
     runs-on: self-hosted
