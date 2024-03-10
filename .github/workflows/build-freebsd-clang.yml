@@ -20,25 +20,25 @@ jobs:
     steps:
     - name: Rsync with FreeBSD
       run: |
-        sshpass -p Password1@ rsync -av $GITHUB_WORKSPACE/ root@192.168.1.102:/root/
+        sshpass -p Password1@ rsync -av $GITHUB_WORKSPACE/ root@192.168.1.102:/root/repo
   create_build_directory:
     needs: [rsync]
     runs-on: self-hosted
     steps:
     - name: Create Build directory
       run: |
-        sshpass -p Password1@ ssh root@192.168.1.102 "mkdir -p build"
+        sshpass -p Password1@ ssh root@192.168.1.102 "mkdir -p /root/repo/build"
   cmake:
     needs: [create_build_directory]
     runs-on: self-hosted
     steps:
     - name: Run CMake
       run: |
-        sshpass -p Password1@ ssh root@192.168.1.102 "cd build && cmake -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang .."
+        sshpass -p Password1@ ssh root@192.168.1.102 "cd /root/repo/build && cmake -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang .."
   compile:
     needs: [cmake]
     runs-on: self-hosted
     steps:
     - name: Compiling
       run: |
-        sshpass -p Password1@ ssh root@192.168.1.102 "cd build && make"
+        sshpass -p Password1@ ssh root@192.168.1.102 "cd /root/repo/build && make"
