@@ -49,15 +49,18 @@ namespace
         inet_ntop (client.ss_family, in_addr(reinterpret_cast<sockaddr*> (&client)), address.data(), address.length());
         return address;
     }
+
 }
 
 Server::Server (const char* _port)
-: port(_port)
+: serverData {[&](auto&& arg){this->server_callback(arg);}}
+, clientData {[&](auto&& arg){this->client_callback(arg);}}
+, userData {[&] (auto&& arg) {this->userData_callback(arg);}}
+, port (_port)
 {
     setup();
-
-    static Udata data = {[&](struct kevent* event){this->server_callback(event);}, Tag::SOCKET};
-    kq.add_fd(listenSocket, EVFILT_READ, &data, EV_ADD | EV_ENABLE, 0);
+    kq.register_event(listenSocket, EVFILT::READ, EV_ADD, 0, serverData);
+    kq.register_user_event(10, EV_ONESHOT, 0, userData);
 }
 
 Server::~Server ()
@@ -109,7 +112,6 @@ void Server::setup ()
         throw std::runtime_error("failed to bind");
     
     std::cout << GREEN << "server bound" << RESET << std::endl;
-
 }
 
 void Server::run ()
@@ -117,7 +119,6 @@ void Server::run ()
     while (true)
     {
         kq.handle_events();
-        std::cout << "HI" << std::endl;
     }
 }
 
@@ -150,36 +151,35 @@ void Server::accept ()
     }
 
     clientAddress = address(connection);
-    std::cout << clientAddress << std::endl;
-    static Udata data = {callBack, Tag::SOCKET};
-    kq.add_fd(clientFd, EVFILT_READ, &data, EV_ADD, 0);
+    kq.register_event(clientFd, EVFILT::READ, EV_ADD, 0, clientData);
 }
 
 void Server::client_callback (struct kevent* event)
 {
     std::cout << "CLIENT ";
-        if (event->flags & EV_ERROR)
-        {
-            std::cout << std::strerror(errno) << std::endl;
-        }
-        else if (event->flags & EV_EOF)
-        {
-            kq.remove_fd(event->ident);
-            std::cout << "DISSCONNECTED" << std::endl;
-        }
-        else if (event->flags & EV_ADD)
-        {
-            char buffer[1024];
-            bzero(buffer, sizeof(buffer));
-            std::cout << "SENDING DATA" << std::endl;
-            ::recv(event->ident, buffer, sizeof(buffer), 0);
-            std::cout << buffer;
-        }
+    if (event->flags & EV_ERROR)
+    {
+        std::cout << std::strerror(errno) << std::endl;
+    }
+    else if (event->flags & EV_EOF)
+    {
+        kq.unregister_event(event->ident);
+        std::cout << "DISSCONNECTED" << std::endl;
+    }
+    else
+    {
+        char buffer[1024];
+        bzero(buffer, sizeof(buffer));
+        std::cout << "SENDING DATA" << std::endl;
+        ::recv(event->ident, buffer, sizeof(buffer), 0);
+        std::cout << buffer;
+    }
+
 }
 
 void Server::server_callback (struct kevent* event)
 {
-    std::cout << "SOCKET EVENT" << std::endl;
+    std::cout << "SOCKET EVENT" << '\n';
     if (event->flags & EV_ERROR)
     {
         std::cout << std::strerror(errno) << std::endl;
@@ -188,4 +188,9 @@ void Server::server_callback (struct kevent* event)
     {
         accept();
     }
+}
+
+void Server::userData_callback (struct kevent* event)
+{
+    std::cout << "HELLO FROM USER LAND!!!!" << std::endl;
 }

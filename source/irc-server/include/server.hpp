@@ -20,6 +20,9 @@ private:
 
 #elif defined(__APPLE__) | defined(__MACH__)
     Kqueue kq;
+    Udata serverData;
+    Udata clientData;
+    Udata userData;
 #endif
 
     std::string port;
@@ -28,6 +31,7 @@ private:
     void accept ();
     void client_callback(struct kevent* event);
     void server_callback (struct kevent* event);
+    void userData_callback (struct kevent* event);
 };
 
 

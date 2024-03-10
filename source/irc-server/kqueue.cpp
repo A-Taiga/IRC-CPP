@@ -1,8 +1,9 @@
 #include "kqueue.hpp"
 #include <format>
+#include <sys/event.h>
 #include <unistd.h>
 #include <iostream>
-
+#include <cassert>
 
 Kqueue::Kqueue()
 : timeout{5, 0}
@@ -17,20 +18,19 @@ Kqueue::~Kqueue()
     close(kq);
 }
 
-void Kqueue::add_fd (int fd , short filter , Udata* data, unsigned short flags, unsigned int fflags)
+void Kqueue::register_event (fileDescriptor fd , EVFILT filter, unsigned short flags, unsigned int fflags, const Udata& data)
 {
     if (refChangeList.find(fd) != refChangeList.end())
         throw std::runtime_error("fd is already in the kq change list");
     changeList.push_back({});
-    EV_SET( &changeList.back(), fd, filter, flags, fflags, 0, data);
+    EV_SET( &changeList.back(), fd, (short)filter, flags, fflags, 0, (void*) &(data));
     int ret = ::kevent(kq, &changeList.back(), 1, nullptr, 0, &timeout);
     if (ret == -1)
         throw std::runtime_error(std::strerror(errno));
     refChangeList[fd] = changeList.size()-1;
-
 }
 
-void Kqueue::remove_fd(int fd)
+void Kqueue::unregister_event (fileDescriptor fd)
 {
     if (refChangeList.find(fd) == refChangeList.end())
         throw std::runtime_error(std::format("{} fd is not found in the change list", __PRETTY_FUNCTION__));
@@ -39,6 +39,39 @@ void Kqueue::remove_fd(int fd)
     changeList.pop_back();
     refChangeList.erase(fd);
     close(fd);
+}
+
+void Kqueue::register_user_event (identifier ident, unsigned short flags, unsigned int fflags, const Udata& data)
+{
+    if (refUserChangeList.find(ident) != refUserChangeList.end())
+        throw std::runtime_error("ident is already in the kq change list");
+    changeList.push_back({});
+    EV_SET( &changeList.back(), ident, EVFILT_USER, EV_ADD | flags, fflags, 0, (void*) &(data));
+    int ret = ::kevent(kq, &changeList.back(), 1, nullptr, 0, &timeout);
+    if (ret == -1)
+        throw std::runtime_error(std::strerror(errno));
+    
+    refUserChangeList[ident] = changeList.size()-1;
+}
+
+void Kqueue::unregister_user_event (identifier ident)
+{
+    if (refUserChangeList.find(ident) == refUserChangeList.end())
+        throw std::runtime_error(std::format("{} ident is not found in the change list", __PRETTY_FUNCTION__));
+        
+    std::swap(changeList[refUserChangeList[ident]], changeList.back());
+    changeList.pop_back();
+    refUserChangeList.erase(ident);
+}
+
+void Kqueue::update_user_event (identifier ident, unsigned short flags, unsigned int fflags, const Udata& data)
+{
+    if (refUserChangeList.find(ident) == refUserChangeList.end())
+        throw std::runtime_error(std::format("{} ident is not found in the change list", __PRETTY_FUNCTION__));
+
+    changeList[refUserChangeList[ident]].flags = flags;
+    changeList[refUserChangeList[ident]].fflags = fflags;
+    changeList[refUserChangeList[ident]].udata = (void*) &data;
 }
 
 void Kqueue::handle_events ()
@@ -51,9 +84,17 @@ void Kqueue::handle_events ()
 
     for (int i = 0; i < nChanges; i++)
     {
+        
         struct kevent* ev = &eventList[i];
         Udata* ud = (Udata*)ev->udata;
 
+        /* This is only taking user defined stuff. Fix that */
+        if (ev->flags & EV_ONESHOT)
+        {
+            std::swap(changeList[refUserChangeList[ev->ident]], changeList.back());
+            changeList.pop_back();
+            refUserChangeList.erase(ev->ident);
+        }
         ud->callback(ev);
     }
 }
