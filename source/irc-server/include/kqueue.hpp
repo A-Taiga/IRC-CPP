@@ -30,10 +30,10 @@ enum class EVFILT: short
     TIMER       = EVFILT_TIMER,
     #if defined(__APPLE__)
         MACHPORT    = EVFILT_MACHPORT,
+        VM          = EVFILT_VM,
+        EXCEPT      = EVFILT_EXCEPT,
     #endif
     FS          = EVFILT_FS,
-    VM          = EVFILT_VM,
-    EXCEPT      = EVFILT_EXCEPT,
 };
 
 enum class Type: short
