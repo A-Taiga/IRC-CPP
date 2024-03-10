@@ -1,0 +1,31 @@
+name: Build Linux+Clang
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  checkout:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+  cmake:
+    runs-on: self-hosted
+    steps:
+      - name: Run CMake
+        run: |
+          mkdir -p build
+          cd build
+          cmake -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang ..
+  build:
+    runs-on: self-hosted
+    steps:
+      - name: Run CMake
+        run: |
+          cd build
+          make
