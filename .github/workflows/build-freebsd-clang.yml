@@ -20,7 +20,7 @@ jobs:
     steps:
     - name: Rsync with FreeBSD
       run: |
-        sshpass -p Password1@ rsync -av $GITHUB_WORKSPACE/ root@192.168.1.102:/root/
+        sshpass -p Password1@ -avz -e "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" $GITHUB_WORKSPACE/ root@192.168.1.102:/root/
   cmake:
     needs: [rsync]
     runs-on: self-hosted
