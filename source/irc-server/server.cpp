@@ -60,7 +60,7 @@ Server::Server (const char* _port)
 {
     setup();
     kq.register_event(listenSocket, EVFILT::READ, EV_ADD, 0, serverData);
-    kq.register_user_event(10, EV_ONESHOT, 0, userData);
+    kq.register_user_event(10, EV_ONESHOT, NOTE_TRIGGER, userData);
 }
 
 Server::~Server ()

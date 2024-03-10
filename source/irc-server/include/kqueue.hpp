@@ -34,7 +34,6 @@ enum class EVFILT: short
     EXCEPT      = EVFILT_EXCEPT,
 };
 
-
 enum class Type: short
 {
     KERNEL,
@@ -62,11 +61,13 @@ class Kqueue
     public:
         Kqueue ();
         ~Kqueue ();
-        void register_event (fileDescriptor ident, EVFILT filter, unsigned short flags, unsigned int fflags, const Udata& data);
+        void register_event (fileDescriptor ident, EVFILT filter, unsigned short flags, unsigned int fflags, Udata& data);
         void unregister_event (fileDescriptor ident);
-        void register_user_event (identifier ident, unsigned short flags, unsigned int fflags, const Udata& data);
+        void update_event (fileDescriptor ident, EVFILT filter, unsigned short flags, unsigned int fflags, Udata& data);
+        void register_user_event (identifier ident, unsigned short flags, unsigned int fflags, Udata& data);
         void unregister_user_event (identifier ident);
-        void update_user_event(identifier ident, unsigned short flags, unsigned int fflags, const Udata& data);
+        void update_user_event(identifier ident, unsigned short flags, unsigned int fflags, Udata& data);
+
         void handle_events ();
 };
 
