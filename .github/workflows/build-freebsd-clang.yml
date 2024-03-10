@@ -18,9 +18,9 @@ jobs:
     needs: [checkout]
     runs-on: self-hosted
     steps:
-    - name: Run CMake
+    - name: Clean
       run: |
-        sshpass -p Password1@ ssh root@192.168.1.102 "rf -rf && mkdir -p build"
+        sshpass -p Password1@ ssh root@192.168.1.102 "rm -rf && mkdir -p build"
   rsync:
     needs: [clean]
     runs-on: self-hosted
