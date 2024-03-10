@@ -1,0 +1,33 @@
+name: Build Linux+GCC
+
+on:
+  push:
+    branches: [ "dev", "main" ]
+  pull_request:
+    branches: [ "dev", "main" ]
+  workflow_dispatch:
+
+jobs:
+  checkout:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+  cmake:
+    needs: [checkout]
+    runs-on: self-hosted
+    steps:
+      - name: Run CMake
+        run: |
+          mkdir -p build
+          cd build
+          cmake -DCMAKE_CXX_COMPILER=g++ -DCMAKE_C_COMPILER=gcc ..
+  build:
+    needs: [cmake]
+    runs-on: self-hosted
+    steps:
+      - name: Run CMake
+        run: |
+          cd build
+          make
