@@ -3,7 +3,7 @@
 
 #if defined(__linux__)
 
-#elif defined(__APPLE__) | defined(__MACH__)
+#elif defined(__APPLE__) | defined (BSD)
     #include "kqueue.hpp"
 #endif
 
@@ -18,7 +18,7 @@ public:
 private:
 #if defined(__linux__)
 
-#elif defined(__APPLE__) | defined(__MACH__)
+#elif defined(__APPLE__) | defined (BSD)
     Kqueue kq;
     Udata serverData;
     Udata clientData;

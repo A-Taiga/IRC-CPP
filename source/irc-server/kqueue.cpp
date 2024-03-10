@@ -104,9 +104,11 @@ void Kqueue::handle_events ()
 
     for (int i = 0; i < nChanges; i++)
     {
-        
         struct kevent* ev = &eventList[i];
         Udata* ud = (Udata*)ev->udata;
+
+        ud->callback(ev);
+
 
         if (ev->flags & EV_ONESHOT)
         {
@@ -123,6 +125,5 @@ void Kqueue::handle_events ()
                 refUserChangeList.erase(ev->ident);
             }
         }
-        ud->callback(ev);
     }
 }
