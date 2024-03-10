@@ -68,10 +68,11 @@ void Kqueue::update_user_event (identifier ident, unsigned short flags, unsigned
 {
     if (refUserChangeList.find(ident) == refUserChangeList.end())
         throw std::runtime_error(std::format("{} ident is not found in the change list", __PRETTY_FUNCTION__));
-
-    changeList[refUserChangeList[ident]].flags = flags;
-    changeList[refUserChangeList[ident]].fflags = fflags;
-    changeList[refUserChangeList[ident]].udata = (void*) &data;
+    
+    std::size_t index = refUserChangeList[ident];
+    changeList[index].flags = flags;
+    changeList[index].fflags = fflags;
+    changeList[index].udata = (void*) &data;
 }
 
 void Kqueue::handle_events ()
