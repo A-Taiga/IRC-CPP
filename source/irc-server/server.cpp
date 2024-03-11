@@ -125,7 +125,7 @@ void Server::run ()
         }
         catch (Kqueue_Error& e)
         {
-            e.what();
+            std::cout << e.what() << std::endl;
         }
     }
 }

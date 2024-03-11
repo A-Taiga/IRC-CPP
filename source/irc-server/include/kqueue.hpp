@@ -86,7 +86,7 @@ class Kqueue_Error : public std::exception
         int line;
         
         Kqueue_Error (std::string _message, const std::source_location& location = std::source_location::current());
-        void what();
+        std::string what();
 };
 
 #endif

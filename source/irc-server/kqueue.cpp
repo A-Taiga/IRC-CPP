@@ -154,7 +154,7 @@ Kqueue_Error::Kqueue_Error (std::string _message, const std::source_location& lo
 , line (location.line())
 {}
 
-void Kqueue_Error::what()
+std::string Kqueue_Error::what()
 {
-    std::cout << fileName << ":" << line << " " << " " << message << std::endl;
+    return std::format("{}:{} {}", fileName, line, message);
 }
