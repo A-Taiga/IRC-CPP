@@ -149,14 +149,7 @@ void Kqueue::handle_events ()
 
         if (ev->flags & EV_ONESHOT || ev->flags & EV_CLEAR)
         {
-            switch (ud->id.index())
-            {
-                case 0: std::swap(changeList[indexMap[identity(std::in_place_index<0>, ev->ident)]], changeList.back());
-                    break;
-                case 1: std::swap(changeList[indexMap[identity(std::in_place_index<1>, ev->ident)]], changeList.back());
-                    break;
-                case 2: std::swap(changeList[indexMap[identity(std::in_place_index<2>, ev->ident)]], changeList.back());
-            }
+            std::swap(changeList[indexMap[ud->id]], changeList.back());
             changeList.pop_back();
         }
     }
