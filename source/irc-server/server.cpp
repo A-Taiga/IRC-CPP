@@ -2,6 +2,7 @@
 #include "kqueue.hpp"
 #include <netdb.h>
 #include <netinet/in.h>
+#include <stdexcept>
 #include <strings.h>
 #include <sys/event.h>
 #include <sys/socket.h>
@@ -30,7 +31,6 @@
 #define B_CYAN     "\x1B[46;1m"
 #define B_WHITE    "\x1B[47;1m"
 
-
 namespace
 {
     void* in_addr (sockaddr* sa)
@@ -52,14 +52,14 @@ namespace
 }
 
 Server::Server (const char* _port)
-: serverData {[&](auto&& arg){this->server_callback(arg);}}
+: kq ({5,0})
+, serverData {[&](auto&& arg){this->server_callback(arg);}}
 , clientData {[&](auto&& arg){this->client_callback(arg);}}
 , userData {[&] (auto&& arg) {this->userData_callback(arg);}}
 , port (_port)
 {
     setup();
-    kq.register_event(listenSocket, EVFILT::READ, EV_ADD, 0, serverData);
-    kq.register_user_event(10, EV_ONESHOT, NOTE_TRIGGER, userData);
+    kq.register_kEvent(listenSocket, EVFILT::READ, EV_ADD, 0, serverData);
 }
 
 Server::~Server ()
@@ -115,6 +115,7 @@ void Server::setup ()
 
 void Server::run ()
 {
+
     while (true)
     {
         kq.handle_events();
@@ -150,7 +151,7 @@ void Server::accept ()
     }
 
     clientAddress = address(connection);
-    kq.register_event(clientFd, EVFILT::READ, EV_ADD, 0, clientData);
+    kq.register_kEvent(clientFd, EVFILT::READ, EV_ADD, 0, clientData);
 }
 
 void Server::client_callback (struct kevent* event)
@@ -162,7 +163,7 @@ void Server::client_callback (struct kevent* event)
     }
     else if (event->flags & EV_EOF)
     {
-        kq.unregister_event(event->ident);
+        kq.unregister_kEvent(event->ident);
         std::cout << "DISSCONNECTED" << std::endl;
     }
     else
@@ -173,7 +174,6 @@ void Server::client_callback (struct kevent* event)
         ::recv(event->ident, buffer, sizeof(buffer), 0);
         std::cout << buffer;
     }
-
 }
 
 void Server::server_callback (struct kevent* event)

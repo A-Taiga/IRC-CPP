@@ -8,16 +8,6 @@
 
 #define MAX_EVENTS 10000
 
-enum class Tag
-{
-    BLOCK_SPECIAL,
-    CHAR_SPECIAL,
-    DIRECTORY,
-    FIFO_OR_SOCKET,
-    REGULAR_FILE,
-    SYMBOLIC_LINK,
-    SOCKET,
-};
 
 enum class EVFILT: short
 {
@@ -28,12 +18,13 @@ enum class EVFILT: short
     PROC        = EVFILT_PROC,
     SIGNAL      = EVFILT_SIGNAL,
     TIMER       = EVFILT_TIMER,
+    FS          = EVFILT_FS,
+    NONE,
     #if defined(__APPLE__)
         MACHPORT    = EVFILT_MACHPORT,
         VM          = EVFILT_VM,
         EXCEPT      = EVFILT_EXCEPT,
     #endif
-    FS          = EVFILT_FS,
 };
 
 enum class Type: short
@@ -59,15 +50,27 @@ class Kqueue
         std::vector<struct kevent> userChangeList;
         std::unordered_map<identifier, std::size_t> refChangeList;
         std::unordered_map<identifier, std::size_t> refUserChangeList;
+
     public:
-        Kqueue ();
+        Kqueue (timespec _timeout);
         ~Kqueue ();
-        void register_event (fileDescriptor ident, EVFILT filter, unsigned short flags, unsigned int fflags, Udata& data);
-        void unregister_event (fileDescriptor ident);
-        void update_event (fileDescriptor ident, EVFILT filter, unsigned short flags, unsigned int fflags, Udata& data);
-        void register_user_event (identifier ident, unsigned short flags, unsigned int fflags, Udata& data);
-        void unregister_user_event (identifier ident);
-        void update_user_event(identifier ident, unsigned short flags, unsigned int fflags, Udata& data);
+        /* register a kernel event */
+        void register_kEvent (fileDescriptor ident, EVFILT filter, unsigned short flags, unsigned int fflags, Udata& data);
+        /* unregister a kernel event */
+        void unregister_kEvent (fileDescriptor ident);
+        /* update kernel event */
+        void update_kEvent (fileDescriptor ident, EVFILT filter, unsigned short flags, unsigned int fflags, Udata& data);
+        /* update kernel event */
+        void update_kEvent (fileDescriptor ident, EVFILT filter, unsigned short flags, unsigned int fflags);
+        /* register user event */
+        void register_uEvent (identifier ident, unsigned short flags, unsigned int fflags, Udata& data);
+        /* unregister kernel event */
+        void unregister_uEvent (identifier ident);
+        /* update user event */
+        void update_uEvent(identifier ident, unsigned short flags, unsigned int fflags, Udata& data);
+        /* update user event */
+        void update_uEvent (identifier ident, unsigned short flags, unsigned int fflags);
+        /* run kqueue */
         void handle_events ();
 };
 
