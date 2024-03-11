@@ -1,5 +1,6 @@
 #include "server.hpp"
 #include "kqueue.hpp"
+#include <exception>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <stdexcept>
@@ -52,7 +53,7 @@ namespace
 }
 
 Server::Server (const char* _port)
-: kq ({5,0})
+: kq ({1,0})
 , serverData {[&](auto&& arg){this->server_callback(arg);}}
 , clientData {[&](auto&& arg){this->client_callback(arg);}}
 , userData {[&] (auto&& arg) {this->userData_callback(arg);}}
@@ -115,10 +116,17 @@ void Server::setup ()
 
 void Server::run ()
 {
-
     while (true)
     {
         kq.handle_events();
+        try
+        {
+            kq.update_uEvent(10, 0, NOTE_TRIGGER);
+        }
+        catch (Kqueue_Error& e)
+        {
+            e.what();
+        }
     }
 }
 

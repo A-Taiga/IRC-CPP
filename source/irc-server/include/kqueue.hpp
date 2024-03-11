@@ -1,10 +1,12 @@
 #ifndef KQUEUE_HPP
 #define KQUEUE_HPP
 
+#include <exception>
 #include <sys/event.h>
 #include <type_traits>
 #include <vector>
 #include <functional>
+#include <source_location>
 
 #define MAX_EVENTS 10000
 
@@ -74,6 +76,20 @@ class Kqueue
         void handle_events ();
 };
 
+
+
+class Kqueue_Error : public std::exception
+{
+    public:
+        std::string message;
+        std::string functionName;
+        std::string fileName;
+        int line;
+        
+        Kqueue_Error (std::string _message, const std::source_location = std::source_location::current());
+        void what();
+};
+
 #endif
 
 /*
@@ -81,3 +97,5 @@ look into EV_DISPATCH
 close everything on SIGINT
 move EV_EOF back into this class
 */
+
+
