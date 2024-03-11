@@ -158,7 +158,6 @@ void Kqueue::handle_events ()
                 case 2: std::swap(changeList[indexMap[identity(std::in_place_index<2>, ev->ident)]], changeList.back());
             }
             changeList.pop_back();
-
         }
     }
 }

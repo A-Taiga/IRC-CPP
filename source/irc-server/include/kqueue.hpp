@@ -98,6 +98,7 @@ class Kqueue_Error : public std::exception
 look into EV_DISPATCH
 close everything on SIGINT
 move EV_EOF back into this class
+maybe change the variant to strongly typed ints
 */
 
 
