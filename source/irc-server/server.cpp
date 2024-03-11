@@ -119,14 +119,6 @@ void Server::run ()
     while (true)
     {
         kq.handle_events();
-        try
-        {
-            kq.update_uEvent(10, 0, NOTE_TRIGGER);
-        }
-        catch (Kqueue_Error& e)
-        {
-            std::cout << e.what() << std::endl;
-        }
     }
 }
 

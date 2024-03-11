@@ -46,7 +46,6 @@ struct Udata
 {
     std::function<void(struct kevent*)> callback;
     identity id;
-    Type type;
 };
 
 class Kqueue
@@ -54,14 +53,9 @@ class Kqueue
     private:
         int kq;
         timespec timeout;
-
-
         std::vector<struct kevent> changeList;
-        std::unordered_map<identity, std::size_t, std::hash<identity>> refChangeList;
-        // std::unordered_map<fileDescriptor, std::size_t> refChangeList;
-        // std::unordered_map<userDescriptor, std::size_t> refUserChangeList;
-
-
+        std::unordered_map<identity, std::size_t, std::hash<identity>> indexMap;
+        
     public:
         Kqueue (timespec _timeout);
         ~Kqueue ();
