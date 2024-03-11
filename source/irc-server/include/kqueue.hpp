@@ -82,11 +82,10 @@ class Kqueue_Error : public std::exception
 {
     public:
         std::string message;
-        std::string functionName;
         std::string fileName;
         int line;
         
-        Kqueue_Error (std::string _message, const std::source_location = std::source_location::current());
+        Kqueue_Error (std::string _message, const std::source_location& location = std::source_location::current());
         void what();
 };
 

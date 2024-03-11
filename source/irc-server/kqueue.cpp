@@ -148,14 +148,13 @@ void Kqueue::handle_events ()
 }
 
  
-Kqueue_Error::Kqueue_Error (std::string _message, const std::source_location location)
+Kqueue_Error::Kqueue_Error (std::string _message, const std::source_location& location)
 : message (_message)
-, functionName (location.function_name())
 , fileName (location.file_name())
 , line (location.line())
 {}
 
 void Kqueue_Error::what()
 {
-    std::cout << fileName << ":" << line << " " <<  functionName << " " << message << std::endl;
+    std::cout << fileName << ":" << line << " " << " " << message << std::endl;
 }
