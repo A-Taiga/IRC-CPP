@@ -4,6 +4,7 @@
 #include <sys/event.h>
 #include <unistd.h>
 #include <iostream>
+#include <utility>
 
 Kqueue::Kqueue(timespec _timeout)
 : timeout(_timeout)
@@ -18,59 +19,69 @@ Kqueue::~Kqueue()
     close(kq);
 }
 
-void Kqueue::register_kEvent (fileDescriptor fd , EVFILT filter, unsigned short flags, unsigned int fflags, Udata& data)
+void Kqueue::register_kEvent (fileDescriptor ident , EVFILT filter, unsigned short flags, unsigned int fflags, Udata& data)
 {
-    if (refChangeList.find(fd) != refChangeList.end())
+    identity id(std::in_place_index<0>, ident);
+
+    if (indexMap.find(id) != indexMap.end())
         throw Kqueue_Error("fd is already in the kq change list");
     
     changeList.push_back({});
-    EV_SET( &changeList.back(), fd, static_cast<short> (filter), flags, fflags, 0, (void*) &(data));
+    EV_SET( &changeList.back(), ident, static_cast<short> (filter), flags, fflags, 0, (void*) &(data));
     int ret = ::kevent(kq, &changeList.back(), 1, nullptr, 0, &timeout);
     if (ret == -1)
         throw Kqueue_Error(std::strerror(errno));
 
-    refChangeList[fd] = changeList.size()-1;
-    data.type = Type::KERNEL;
+    indexMap[id] = changeList.size()-1;
+    data.id = id;
 }
 
-void Kqueue::unregister_kEvent (fileDescriptor fd)
+void Kqueue::unregister_kEvent (fileDescriptor ident)
 {
-    if (refChangeList.find(fd) == refChangeList.end())
+    identity id (std::in_place_index<0>, ident);
+
+    if (indexMap.find(id) == indexMap.end())
         throw Kqueue_Error ("fd is not found in the change list");
     
-    std::swap(changeList[refChangeList[fd]], changeList.back());
+    std::swap(changeList[indexMap[id]], changeList.back());
     changeList.pop_back();
-    refChangeList.erase(fd);
-    close(fd);
+    indexMap.erase(id);
+    close(ident);
 }
 
 void Kqueue::update_kEvent (fileDescriptor ident, EVFILT filter, unsigned short flags, unsigned int fflags, Udata& data)
 {
-    if (refChangeList.find(ident) != refChangeList.end())
+    identity id (std::in_place_index<0>, ident);
+
+    if (indexMap.find(id) != indexMap.end())
         throw Kqueue_Error("fd is not found in the change list");
     
-    std::size_t index = refChangeList[ident];
+    std::size_t index = indexMap[id];
     changeList[index].filter = static_cast<short> (filter);
     changeList[index].flags = flags;
     changeList[index].fflags = fflags;
     changeList[index].udata = (void*) &data;
-    data.type = Type::KERNEL;
+    data.id = id;
 }
 
 void Kqueue::update_kEvent (fileDescriptor ident, EVFILT filter, unsigned short flags, unsigned int fflags)
 {
-    if (refChangeList.find(ident) != refChangeList.end())
+    identity id (std::in_place_index<0>, ident);
+
+    if (indexMap.find(id) != indexMap.end())
         throw Kqueue_Error("fd is not found in the change list");
     
-    std::size_t index = refChangeList[ident];
+    std::size_t index = indexMap[id];
     changeList[index].filter = static_cast<short> (filter);
     changeList[index].flags = flags;
     changeList[index].fflags = fflags;
 }
 
-void Kqueue::register_uEvent (identifier ident, unsigned short flags, unsigned int fflags, Udata& data)
+void Kqueue::register_uEvent (userDescriptor ident, unsigned short flags, unsigned int fflags, Udata& data)
 {
-    if (refUserChangeList.find(ident) != refUserChangeList.end())
+    identity id (std::in_place_index<1>, ident);
+
+    if (indexMap.find(id) != indexMap.end())
         throw Kqueue_Error("ident is already in the kq change list");
     changeList.push_back({});
     EV_SET( &changeList.back(), ident, EVFILT_USER, EV_ADD | flags, fflags, 0, static_cast<void*>(&data));
@@ -78,38 +89,45 @@ void Kqueue::register_uEvent (identifier ident, unsigned short flags, unsigned i
     if (ret == -1)
         throw Kqueue_Error(std::strerror(errno));
     
-    refUserChangeList[ident] = changeList.size()-1;
-    data.type = Type::USER;
+    indexMap[id] = changeList.size()-1;
+    data.id = id;
 }
 
-void Kqueue::unregister_uEvent (identifier ident)
+void Kqueue::unregister_uEvent (userDescriptor ident)
 {
-    if (refUserChangeList.find(ident) == refUserChangeList.end())
+    identity id (std::in_place_index<1>, ident);
+
+    if (indexMap.find(id) == indexMap.end())
         throw Kqueue_Error("dent is not found in the change list");
         
-    std::swap(changeList[refUserChangeList[ident]], changeList.back());
+    std::swap(changeList[indexMap[id]], changeList.back());
     changeList.pop_back();
-    refUserChangeList.erase(ident);
+    indexMap.erase(id);
 }
 
-void Kqueue::update_uEvent (identifier ident, unsigned short flags, unsigned int fflags, Udata& data)
+void Kqueue::update_uEvent (userDescriptor ident, unsigned short flags, unsigned int fflags, Udata& data)
 {
-    if (refUserChangeList.find(ident) == refUserChangeList.end())
+    identity id (std::in_place_index<1>, ident);
+
+    if (indexMap.find(id) == indexMap.end())
         throw Kqueue_Error("ident is not found in the change list");
 
-    std::size_t index = refUserChangeList[ident];
+    std::size_t index = indexMap[id];
     changeList[index].flags = flags;
     changeList[index].fflags = fflags;
     changeList[index].udata = (void*) &data;
-    data.type = Type::USER;
+    data.id = id;
+
 }
 
-void Kqueue::update_uEvent (identifier ident, unsigned short flags, unsigned int fflags)
+void Kqueue::update_uEvent (userDescriptor ident, unsigned short flags, unsigned int fflags)
 {
-    if (refUserChangeList.find(ident) == refUserChangeList.end())
+    identity id (std::in_place_index<1>, ident);
+
+    if (indexMap.find(id) == indexMap.end())
         throw Kqueue_Error("ident is not found in the change list");
     
-    std::size_t index = refUserChangeList[ident];
+    std::size_t index = indexMap[id];
     changeList[index].flags = flags;
     changeList[index].fflags = fflags;
 }
@@ -131,23 +149,19 @@ void Kqueue::handle_events ()
 
         if (ev->flags & EV_ONESHOT || ev->flags & EV_CLEAR)
         {
-            if (ud->type == Type::KERNEL)
+            switch (ud->id.index())
             {
-                std::swap(changeList[refChangeList[ev->ident]], changeList.back());
-                changeList.pop_back();
-                refChangeList.erase(ev->ident);
+                case 0: std::swap(changeList[indexMap[identity(std::in_place_index<0>, ev->ident)]], changeList.back());
+                    break;
+                case 1: std::swap(changeList[indexMap[identity(std::in_place_index<1>, ev->ident)]], changeList.back());
+                    break;
+                case 2: std::swap(changeList[indexMap[identity(std::in_place_index<2>, ev->ident)]], changeList.back());
             }
-            else if (ud->type == Type::USER)
-            {
-                std::swap(changeList[refUserChangeList[ev->ident]], changeList.back());
-                changeList.pop_back();
-                refUserChangeList.erase(ev->ident);
-            }
+            changeList.pop_back();
         }
     }
 }
 
- 
 Kqueue_Error::Kqueue_Error (std::string _message, const std::source_location& location)
 : message (_message)
 , fileName (location.file_name())

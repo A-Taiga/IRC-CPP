@@ -7,8 +7,15 @@
 #include <vector>
 #include <functional>
 #include <source_location>
+#include <variant>
 
 #define MAX_EVENTS 10000
+
+
+using fileDescriptor = int;
+using userDescriptor = int;
+using signalDescriptor = int;
+using identity = std::variant<fileDescriptor, userDescriptor, signalDescriptor>;
 
 
 enum class EVFILT: short
@@ -38,7 +45,7 @@ enum class Type: short
 struct Udata
 {
     std::function<void(struct kevent*)> callback;
-    Type type;
+    identity id;
 };
 
 class Kqueue
@@ -46,13 +53,9 @@ class Kqueue
     private:
         int kq;
         timespec timeout;
-        using fileDescriptor = int;
-        using identifier = int;
         std::vector<struct kevent> changeList;
-        std::vector<struct kevent> userChangeList;
-        std::unordered_map<identifier, std::size_t> refChangeList;
-        std::unordered_map<identifier, std::size_t> refUserChangeList;
-
+        std::unordered_map<identity, std::size_t, std::hash<identity>> indexMap;
+        
     public:
         Kqueue (timespec _timeout);
         ~Kqueue ();
@@ -65,13 +68,13 @@ class Kqueue
         /* update kernel event */
         void update_kEvent (fileDescriptor ident, EVFILT filter, unsigned short flags, unsigned int fflags);
         /* register user event */
-        void register_uEvent (identifier ident, unsigned short flags, unsigned int fflags, Udata& data);
+        void register_uEvent (userDescriptor ident, unsigned short flags, unsigned int fflags, Udata& data);
         /* unregister kernel event */
-        void unregister_uEvent (identifier ident);
+        void unregister_uEvent (userDescriptor ident);
         /* update user event */
-        void update_uEvent(identifier ident, unsigned short flags, unsigned int fflags, Udata& data);
+        void update_uEvent(userDescriptor ident, unsigned short flags, unsigned int fflags, Udata& data);
         /* update user event */
-        void update_uEvent (identifier ident, unsigned short flags, unsigned int fflags);
+        void update_uEvent (userDescriptor ident, unsigned short flags, unsigned int fflags);
         /* run kqueue */
         void handle_events ();
 };
@@ -95,6 +98,7 @@ class Kqueue_Error : public std::exception
 look into EV_DISPATCH
 close everything on SIGINT
 move EV_EOF back into this class
+maybe change the variant to strongly typed ints
 */
 
 
