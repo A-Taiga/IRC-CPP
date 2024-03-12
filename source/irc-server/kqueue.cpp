@@ -21,9 +21,8 @@ Kqueue::~Kqueue()
 
 void Kqueue::register_kEvent (fileDescriptor ident , EVFILT filter, unsigned short flags, unsigned int fflags, Udata& data)
 {
-    fileDescriptor id(ident);
 
-    if (indexMap.find(id) != indexMap.end())
+    if (indexMap.find(ident) != indexMap.end())
         throw Kqueue_Error("fd is already in the kq change list");
     
     changeList.push_back({});
@@ -32,31 +31,28 @@ void Kqueue::register_kEvent (fileDescriptor ident , EVFILT filter, unsigned sho
     if (ret == -1)
         throw Kqueue_Error(std::strerror(errno));
 
-    indexMap[id] = changeList.size()-1;
+    indexMap[ident] = changeList.size()-1;
     data.type = Type::KERNEL;
 }
 
 void Kqueue::unregister_kEvent (fileDescriptor ident)
 {
-    fileDescriptor id (ident);
-
-    if (indexMap.find(id) == indexMap.end())
+    if (indexMap.find(ident) == indexMap.end())
         throw Kqueue_Error ("fd is not found in the change list");
     
-    std::swap(changeList[indexMap[id]], changeList.back());
+    std::swap(changeList[indexMap[ident]], changeList.back());
     changeList.pop_back();
-    indexMap.erase(id);
+    indexMap.erase(ident);
     close(ident);
 }
 
 void Kqueue::update_kEvent (fileDescriptor ident, EVFILT filter, unsigned short flags, unsigned int fflags, Udata& data)
 {
-    fileDescriptor id (ident);
 
-    if (indexMap.find(id) != indexMap.end())
+    if (indexMap.find(ident) != indexMap.end())
         throw Kqueue_Error("fd is not found in the change list");
     
-    std::size_t index = indexMap[id];
+    std::size_t index = indexMap[ident];
     changeList[index].filter = static_cast<short> (filter);
     changeList[index].flags = flags;
     changeList[index].fflags = fflags;
@@ -66,12 +62,10 @@ void Kqueue::update_kEvent (fileDescriptor ident, EVFILT filter, unsigned short 
 
 void Kqueue::update_kEvent (fileDescriptor ident, EVFILT filter, unsigned short flags, unsigned int fflags)
 {
-    fileDescriptor id (ident);
-
-    if (indexMap.find(id) != indexMap.end())
+    if (indexMap.find(ident) != indexMap.end())
         throw Kqueue_Error("fd is not found in the change list");
     
-    std::size_t index = indexMap[id];
+    std::size_t index = indexMap[ident];
     changeList[index].filter = static_cast<short> (filter);
     changeList[index].flags = flags;
     changeList[index].fflags = fflags;
@@ -79,9 +73,8 @@ void Kqueue::update_kEvent (fileDescriptor ident, EVFILT filter, unsigned short 
 
 void Kqueue::register_uEvent (userDescriptor ident, unsigned short flags, unsigned int fflags, Udata& data)
 {
-    userDescriptor id (ident);
 
-    if (indexMap.find(id) != indexMap.end())
+    if (indexMap.find(ident) != indexMap.end())
         throw Kqueue_Error("ident is already in the kq change list");
     changeList.push_back({});
     EV_SET( &changeList.back(), ident, EVFILT_USER, EV_ADD | flags, fflags, 0, static_cast<void*>(&data));
@@ -89,30 +82,26 @@ void Kqueue::register_uEvent (userDescriptor ident, unsigned short flags, unsign
     if (ret == -1)
         throw Kqueue_Error(std::strerror(errno));
     
-    indexMap[id] = changeList.size()-1;
+    indexMap[ident] = changeList.size()-1;
     data.type = Type::USER;
 }
 
 void Kqueue::unregister_uEvent (userDescriptor ident)
 {
-    userDescriptor id (ident);
-
-    if (indexMap.find(id) == indexMap.end())
+    if (indexMap.find(ident) == indexMap.end())
         throw Kqueue_Error("dent is not found in the change list");
         
-    std::swap(changeList[indexMap[id]], changeList.back());
+    std::swap(changeList[indexMap[ident]], changeList.back());
     changeList.pop_back();
-    indexMap.erase(id);
+    indexMap.erase(ident);
 }
 
 void Kqueue::update_uEvent (userDescriptor ident, unsigned short flags, unsigned int fflags, Udata& data)
 {
-    userDescriptor id (ident);
-
-    if (indexMap.find(id) == indexMap.end())
+    if (indexMap.find(ident) == indexMap.end())
         throw Kqueue_Error("ident is not found in the change list");
 
-    std::size_t index = indexMap[id];
+    std::size_t index = indexMap[ident];
     changeList[index].flags = flags;
     changeList[index].fflags = fflags;
     changeList[index].udata = (void*) &data;
@@ -122,12 +111,10 @@ void Kqueue::update_uEvent (userDescriptor ident, unsigned short flags, unsigned
 
 void Kqueue::update_uEvent (userDescriptor ident, unsigned short flags, unsigned int fflags)
 {
-    userDescriptor id (ident);
-
-    if (indexMap.find(id) == indexMap.end())
+    if (indexMap.find(ident) == indexMap.end())
         throw Kqueue_Error("ident is not found in the change list");
     
-    std::size_t index = indexMap[id];
+    std::size_t index = indexMap[ident];
     changeList[index].flags = flags;
     changeList[index].fflags = fflags;
 }
