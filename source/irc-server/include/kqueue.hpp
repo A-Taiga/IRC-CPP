@@ -48,14 +48,14 @@ struct fileDescriptor : genericDescriptor
 
 struct userDescriptor : genericDescriptor
 {
-    userDescriptor (): genericDescriptor(Type::KERNEL){}
-    userDescriptor (int value) : genericDescriptor(value, Type::KERNEL){}
+    userDescriptor (): genericDescriptor(Type::USER){}
+    userDescriptor (int value) : genericDescriptor(value, Type::USER){}
 };
 
 struct signalDescriptor : genericDescriptor
 {
-    signalDescriptor (): genericDescriptor(Type::KERNEL){}
-    signalDescriptor (int value) : genericDescriptor(value, Type::KERNEL){}
+    signalDescriptor (): genericDescriptor(Type::SIGNAL){}
+    signalDescriptor (int value) : genericDescriptor(value, Type::SIGNAL){}
 };
 
 enum class EVFILT: short
