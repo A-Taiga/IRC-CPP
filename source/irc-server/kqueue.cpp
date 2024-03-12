@@ -21,7 +21,7 @@ Kqueue::~Kqueue()
 
 void Kqueue::register_kEvent (fileDescriptor ident , EVFILT filter, unsigned short flags, unsigned int fflags, Udata& data)
 {
-    identity id(std::in_place_index<0>, ident);
+    fileDescriptor id(ident);
 
     if (indexMap.find(id) != indexMap.end())
         throw Kqueue_Error("fd is already in the kq change list");
@@ -33,12 +33,12 @@ void Kqueue::register_kEvent (fileDescriptor ident , EVFILT filter, unsigned sho
         throw Kqueue_Error(std::strerror(errno));
 
     indexMap[id] = changeList.size()-1;
-    data.id = id;
+    data.type = Type::KERNEL;
 }
 
 void Kqueue::unregister_kEvent (fileDescriptor ident)
 {
-    identity id (std::in_place_index<0>, ident);
+    fileDescriptor id (ident);
 
     if (indexMap.find(id) == indexMap.end())
         throw Kqueue_Error ("fd is not found in the change list");
@@ -51,7 +51,7 @@ void Kqueue::unregister_kEvent (fileDescriptor ident)
 
 void Kqueue::update_kEvent (fileDescriptor ident, EVFILT filter, unsigned short flags, unsigned int fflags, Udata& data)
 {
-    identity id (std::in_place_index<0>, ident);
+    fileDescriptor id (ident);
 
     if (indexMap.find(id) != indexMap.end())
         throw Kqueue_Error("fd is not found in the change list");
@@ -61,12 +61,12 @@ void Kqueue::update_kEvent (fileDescriptor ident, EVFILT filter, unsigned short 
     changeList[index].flags = flags;
     changeList[index].fflags = fflags;
     changeList[index].udata = (void*) &data;
-    data.id = id;
+    data.type = Type::KERNEL;
 }
 
 void Kqueue::update_kEvent (fileDescriptor ident, EVFILT filter, unsigned short flags, unsigned int fflags)
 {
-    identity id (std::in_place_index<0>, ident);
+    fileDescriptor id (ident);
 
     if (indexMap.find(id) != indexMap.end())
         throw Kqueue_Error("fd is not found in the change list");
@@ -79,7 +79,7 @@ void Kqueue::update_kEvent (fileDescriptor ident, EVFILT filter, unsigned short 
 
 void Kqueue::register_uEvent (userDescriptor ident, unsigned short flags, unsigned int fflags, Udata& data)
 {
-    identity id (std::in_place_index<1>, ident);
+    userDescriptor id (ident);
 
     if (indexMap.find(id) != indexMap.end())
         throw Kqueue_Error("ident is already in the kq change list");
@@ -90,12 +90,12 @@ void Kqueue::register_uEvent (userDescriptor ident, unsigned short flags, unsign
         throw Kqueue_Error(std::strerror(errno));
     
     indexMap[id] = changeList.size()-1;
-    data.id = id;
+    data.type = Type::USER;
 }
 
 void Kqueue::unregister_uEvent (userDescriptor ident)
 {
-    identity id (std::in_place_index<1>, ident);
+    userDescriptor id (ident);
 
     if (indexMap.find(id) == indexMap.end())
         throw Kqueue_Error("dent is not found in the change list");
@@ -107,7 +107,7 @@ void Kqueue::unregister_uEvent (userDescriptor ident)
 
 void Kqueue::update_uEvent (userDescriptor ident, unsigned short flags, unsigned int fflags, Udata& data)
 {
-    identity id (std::in_place_index<1>, ident);
+    userDescriptor id (ident);
 
     if (indexMap.find(id) == indexMap.end())
         throw Kqueue_Error("ident is not found in the change list");
@@ -116,13 +116,13 @@ void Kqueue::update_uEvent (userDescriptor ident, unsigned short flags, unsigned
     changeList[index].flags = flags;
     changeList[index].fflags = fflags;
     changeList[index].udata = (void*) &data;
-    data.id = id;
+    data.type = Type::USER;
 
 }
 
 void Kqueue::update_uEvent (userDescriptor ident, unsigned short flags, unsigned int fflags)
 {
-    identity id (std::in_place_index<1>, ident);
+    userDescriptor id (ident);
 
     if (indexMap.find(id) == indexMap.end())
         throw Kqueue_Error("ident is not found in the change list");
@@ -149,7 +149,14 @@ void Kqueue::handle_events ()
 
         if (ev->flags & EV_ONESHOT || ev->flags & EV_CLEAR)
         {
-            std::swap(changeList[indexMap[ud->id]], changeList.back());
+            switch (ud->type)
+            {
+                case Type::KERNEL:  std::swap(changeList[indexMap[fileDescriptor(ev->ident)]], changeList.back());
+                    break;
+                case Type::USER:    std::swap(changeList[indexMap[userDescriptor(ev->ident)]], changeList.back());
+                    break;
+                case Type::SIGNAL:  std::swap(changeList[indexMap[signalDescriptor(ev->ident)]], changeList.back());
+            }
             changeList.pop_back();
         }
     }

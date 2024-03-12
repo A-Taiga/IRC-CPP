@@ -12,11 +12,51 @@
 #define MAX_EVENTS 10000
 
 
-using fileDescriptor = int;
-using userDescriptor = int;
-using signalDescriptor = int;
-using identity = std::variant<fileDescriptor, userDescriptor, signalDescriptor>;
 
+enum class Type: short
+{
+    KERNEL,
+    USER,
+    SIGNAL,
+};
+
+struct genericDescriptor
+{
+    int value;
+    genericDescriptor (Type _type): type(_type) {}
+    genericDescriptor (int _value, Type _type): value(_value), type(_type){}
+    operator int () const {return value;}
+    Type get_type () const {return type;}
+    private:
+        Type type;
+};
+
+template<>
+struct std::hash<genericDescriptor>
+{
+    std::size_t operator () (const genericDescriptor& generic) const
+    {
+        return std::hash<int>{}(generic.value) ^ std::hash<int>{}(static_cast<int>(generic.get_type()));
+    }
+};
+
+struct fileDescriptor : genericDescriptor
+{
+    fileDescriptor (): genericDescriptor(Type::KERNEL){}
+    fileDescriptor (int value) : genericDescriptor(value, Type::KERNEL){}
+};
+
+struct userDescriptor : genericDescriptor
+{
+    userDescriptor (): genericDescriptor(Type::KERNEL){}
+    userDescriptor (int value) : genericDescriptor(value, Type::KERNEL){}
+};
+
+struct signalDescriptor : genericDescriptor
+{
+    signalDescriptor (): genericDescriptor(Type::KERNEL){}
+    signalDescriptor (int value) : genericDescriptor(value, Type::KERNEL){}
+};
 
 enum class EVFILT: short
 {
@@ -36,17 +76,10 @@ enum class EVFILT: short
     #endif
 };
 
-enum class Type: short
-{
-    KERNEL,
-    USER,
-};
-
-
 struct Udata
 {
     std::function<void(struct kevent*)> callback;
-    identity id;
+    Type type;
 };
 
 class Kqueue
@@ -55,7 +88,7 @@ class Kqueue
         int kq;
         timespec timeout;
         std::vector<struct kevent> changeList;
-        std::unordered_map<identity, std::size_t, std::hash<identity>> indexMap;
+        std::unordered_map<genericDescriptor, std::size_t, std::hash<genericDescriptor>> indexMap;
         
     public:
         Kqueue (timespec _timeout);
