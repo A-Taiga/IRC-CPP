@@ -64,6 +64,8 @@ Server::Server (const char* _port)
 {
     setup();
     kq.register_kEvent(listenSocket, EVFILT::READ, EV_ADD, 0, serverData);
+    kq.register_uEvent(0, EV_ONESHOT, 0, userData);
+
 }
 
 Server::~Server ()
@@ -148,6 +150,8 @@ void Server::accept ()
     clientAddress = address(connection);
     kq.register_kEvent(clientFd, EVFILT::READ, EV_ADD, 0, clientData);
     std::cout << "[" << clientNumber++ << "] " << GREEN << "CLIENT CONNECTED" << RESET << std::endl;
+    kq.update_uEvent(0, EV_ONESHOT, NOTE_TRIGGER, userData);
+
 }
 
 void Server::client_callback (struct kevent* event)
