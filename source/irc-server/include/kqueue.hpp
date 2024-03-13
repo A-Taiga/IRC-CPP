@@ -18,12 +18,13 @@ enum class Type: short
     KERNEL,
     USER,
     SIGNAL,
+    UNKNOWN,
 };
 
 struct genericDescriptor
 {
     int value;
-    genericDescriptor (Type _type): type(_type) {}
+    genericDescriptor (Type _type = Type::UNKNOWN): type(_type) {}
     genericDescriptor (int _value, Type _type): value(_value), type(_type){}
     operator int () const {return value;}
     Type get_type () const {return type;}
@@ -89,6 +90,7 @@ class Kqueue
         timespec timeout;
         std::vector<struct kevent> changeList;
         std::unordered_map<genericDescriptor, std::size_t, std::hash<genericDescriptor>> indexMap;
+        void remove_event(int ident, Type type);
         
     public:
         Kqueue (timespec _timeout);
@@ -113,17 +115,16 @@ class Kqueue
         void handle_events ();
 };
 
-
-
 class Kqueue_Error : public std::exception
 {
     public:
         std::string message;
         std::string fileName;
         int line;
+        std::string fullmsg;
         
-        Kqueue_Error (std::string _message, const std::source_location& location = std::source_location::current());
-        std::string what();
+        Kqueue_Error (std::string _message, std::source_location location = std::source_location::current());
+        virtual const char* what() const noexcept;
 };
 
 #endif

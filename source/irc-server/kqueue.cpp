@@ -1,10 +1,22 @@
 #include "kqueue.hpp"
 #include <_stdio.h>
+#include <cstdlib>
+#include <cstring>
+#include <exception>
 #include <format>
 #include <sys/event.h>
 #include <unistd.h>
 #include <iostream>
 #include <utility>
+#include <fcntl.h>
+
+namespace
+{
+    int is_valid_fd(int fd)
+    {
+        return fcntl(fd, F_GETFL);
+    }
+}
 
 Kqueue::Kqueue(timespec _timeout)
 : timeout(_timeout)
@@ -21,7 +33,8 @@ Kqueue::~Kqueue()
 
 void Kqueue::register_kEvent (fileDescriptor ident , EVFILT filter, unsigned short flags, unsigned int fflags, Udata& data)
 {
-
+    if(is_valid_fd(ident) == -1)
+        throw "invalid fd";
     if (indexMap.find(ident) != indexMap.end())
         throw Kqueue_Error("fd is already in the kq change list");
     
@@ -29,7 +42,7 @@ void Kqueue::register_kEvent (fileDescriptor ident , EVFILT filter, unsigned sho
     EV_SET( &changeList.back(), ident, static_cast<short> (filter), flags, fflags, 0, (void*) &(data));
     int ret = ::kevent(kq, &changeList.back(), 1, nullptr, 0, &timeout);
     if (ret == -1)
-        throw Kqueue_Error(std::strerror(errno));
+        throw Kqueue_Error("REGISTER");
 
     indexMap[ident] = changeList.size()-1;
     data.type = Type::KERNEL;
@@ -40,7 +53,7 @@ void Kqueue::unregister_kEvent (fileDescriptor ident)
     if (indexMap.find(ident) == indexMap.end())
         throw Kqueue_Error ("fd is not found in the change list");
     
-    std::swap(changeList[indexMap[ident]], changeList.back());
+    std::swap(changeList[indexMap[fileDescriptor(ident)]], changeList.back());
     changeList.pop_back();
     indexMap.erase(ident);
     close(ident);
@@ -80,7 +93,7 @@ void Kqueue::register_uEvent (userDescriptor ident, unsigned short flags, unsign
     EV_SET( &changeList.back(), ident, EVFILT_USER, EV_ADD | flags, fflags, 0, static_cast<void*>(&data));
     int ret = ::kevent(kq, &changeList.back(), 1, nullptr, 0, &timeout);
     if (ret == -1)
-        throw Kqueue_Error(std::strerror(errno));
+        throw Kqueue_Error("REGISTER UEVENT");
     
     indexMap[ident] = changeList.size()-1;
     data.type = Type::USER;
@@ -123,39 +136,68 @@ void Kqueue::handle_events ()
 {
     int nChanges;
     struct kevent eventList[MAX_EVENTS];
-    nChanges = ::kevent(kq, changeList.data(), changeList.size(), eventList, MAX_EVENTS, &timeout);
+    nChanges = ::kevent(kq, NULL, 0, eventList, MAX_EVENTS, &timeout);
     if (nChanges == -1)
-        throw Kqueue_Error(std::strerror(errno));
+        throw Kqueue_Error("nChanges");
 
     for (int i = 0; i < nChanges; i++)
     {
         struct kevent* ev = &eventList[i];
         Udata* ud = (Udata*)ev->udata;
+        // std::cout << "======================" << std::endl;
+        // std::cout << std::format("changeList: {}\nnChanges: {}", changeList.size(), nChanges) << std::endl;
+        // std::cout << "======================" << std::endl;
 
-        ud->callback(ev);
-
-        if (ev->flags & EV_ONESHOT || ev->flags & EV_CLEAR)
+        if (ev->flags & EV_ERROR)
         {
-            switch (ud->type)
+            std::cout << strerror(errno) << std::endl;
+            try
             {
-                case Type::KERNEL:  std::swap(changeList[indexMap[fileDescriptor(ev->ident)]], changeList.back());
-                    break;
-                case Type::USER:    std::swap(changeList[indexMap[userDescriptor(ev->ident)]], changeList.back());
-                    break;
-                case Type::SIGNAL:  std::swap(changeList[indexMap[signalDescriptor(ev->ident)]], changeList.back());
+                remove_event(ev->ident, ud->type);
             }
-            changeList.pop_back();
+            catch (Kqueue_Error& e)
+            {
+                std::cout << e.what() << std::endl;
+            }
+        }
+        else if (ev->flags & EV_ONESHOT)
+        {
+            try
+            {
+                remove_event(ev->ident, ud->type);
+            } 
+            catch (Kqueue_Error& e)
+            {
+                std::cout << e.what() << std::endl;
+            }
+        }
+        else
+        {
+            ud->callback(ev);
         }
     }
 }
 
-Kqueue_Error::Kqueue_Error (std::string _message, const std::source_location& location)
+void Kqueue::remove_event(int ident, Type type)
+{
+    switch (type)
+    {
+        case Type::KERNEL:  unregister_kEvent(ident); break;
+        case Type::USER:    unregister_uEvent(ident); break;
+        case Type::SIGNAL:  break;
+        case Type::UNKNOWN: throw Kqueue_Error("Type is unknown");
+    }
+}
+
+
+Kqueue_Error::Kqueue_Error (std::string _message, std::source_location location)
 : message (_message)
 , fileName (location.file_name())
 , line (location.line())
-{}
-
-std::string Kqueue_Error::what()
 {
-    return std::format("{}:{} {}", fileName, line, message);
+    fullmsg = std::format("{}:{} {}", fileName, line, message);
+}
+const char* Kqueue_Error::what() const noexcept
+{
+    return fullmsg.c_str();
 }
