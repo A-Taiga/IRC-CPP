@@ -44,7 +44,7 @@ int main(int argc, char* args[])
 		std::cout << "PORT NOT A VALID NUMBER" << std::endl;
 
 	Server server(args[1]);
-	server.listen(10);
+	server.listen(1000);
 	server.run();
 
 	return 0;

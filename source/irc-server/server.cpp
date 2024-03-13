@@ -1,14 +1,18 @@
 #include "server.hpp"
 #include "kqueue.hpp"
+#include <exception>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <stdexcept>
 #include <strings.h>
 #include <sys/event.h>
+#include <sys/fcntl.h>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <iostream>
 #include <format>
+#include <fcntl.h>
 
 #define CLEAR   "\e[2J\e[3J\e[H"
 #define BLACK   "\x1B[30;1m"
@@ -30,7 +34,6 @@
 #define B_CYAN     "\x1B[46;1m"
 #define B_WHITE    "\x1B[47;1m"
 
-
 namespace
 {
     void* in_addr (sockaddr* sa)
@@ -49,17 +52,25 @@ namespace
         inet_ntop (client.ss_family, in_addr(reinterpret_cast<sockaddr*> (&client)), address.data(), address.length());
         return address;
     }
+
+    int is_valid_fd(int fd)
+    {
+        return fcntl(fd, F_GETFL);
+    }
 }
 
+static int clientNumber = 0;
+static int clientDNumber = 0;
+
 Server::Server (const char* _port)
-: serverData {[&](auto&& arg){this->server_callback(arg);}}
+: kq ({5,0})
+, serverData {[&](auto&& arg){this->server_callback(arg);}}
 , clientData {[&](auto&& arg){this->client_callback(arg);}}
 , userData {[&] (auto&& arg) {this->userData_callback(arg);}}
 , port (_port)
 {
     setup();
-    kq.register_event(listenSocket, EVFILT::READ, EV_ADD, 0, serverData);
-    kq.register_user_event(10, EV_ONESHOT, NOTE_TRIGGER, userData);
+    kq.register_kEvent(listenSocket, EVFILT::READ, EV_ADD, 0, serverData);
 }
 
 Server::~Server ()
@@ -138,32 +149,22 @@ void Server::accept ()
 
     connectionSize = sizeof(connection);
     clientFd = ::accept (listenSocket, reinterpret_cast<sockaddr*>(&connection), &connectionSize);
-
-    try
-    {
-        if (clientFd == -1)
-            throw std::runtime_error(std::format("Line: {} : {}", __LINE__, std::strerror(errno)));
-    } 
-    catch (std::runtime_error& e)
-    {
-        std::cout << e.what() << std::endl;
-    }
-
+    if (clientFd == -1)
+        throw std::runtime_error(std::format("Line: {} : {}", __LINE__, std::strerror(errno)));
+    
     clientAddress = address(connection);
-    kq.register_event(clientFd, EVFILT::READ, EV_ADD, 0, clientData);
+    kq.register_kEvent(clientFd, EVFILT::READ, EV_ADD, 0, clientData);
+    std::cout << "[" << clientNumber++ << "] " << GREEN << "CLIENT CONNECTED" << RESET << std::endl;
 }
 
 void Server::client_callback (struct kevent* event)
 {
     std::cout << "CLIENT ";
-    if (event->flags & EV_ERROR)
+    if (event->flags & EV_EOF)
     {
-        std::cout << std::strerror(errno) << std::endl;
-    }
-    else if (event->flags & EV_EOF)
-    {
-        kq.unregister_event(event->ident);
-        std::cout << "DISSCONNECTED" << std::endl;
+        kq.unregister_kEvent(event->ident);
+        std::cout << "[" << clientDNumber++ << "] " << RED << "DISCONNECTED" << RESET << std::endl;
+        close(event->ident);
     }
     else
     {
@@ -173,20 +174,11 @@ void Server::client_callback (struct kevent* event)
         ::recv(event->ident, buffer, sizeof(buffer), 0);
         std::cout << buffer;
     }
-
 }
 
 void Server::server_callback (struct kevent* event)
 {
-    std::cout << "SOCKET EVENT" << '\n';
-    if (event->flags & EV_ERROR)
-    {
-        std::cout << std::strerror(errno) << std::endl;
-    }
-    else
-    {
-        accept();
-    }
+    accept();
 }
 
 void Server::userData_callback (struct kevent* event)
