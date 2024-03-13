@@ -42,6 +42,7 @@ class Server_Error : std::exception
         std::string message;
     public:
         Server_Error (std::string msg, std::source_location = std::source_location::current());
+        Server_Error (std::source_location = std::source_location::current());
         virtual const char* what() const noexcept;
 };
 
