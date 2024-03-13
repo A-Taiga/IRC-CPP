@@ -8,15 +8,7 @@
 #include <unistd.h>
 #include <iostream>
 #include <utility>
-#include <fcntl.h>
 
-namespace
-{
-    int is_valid_fd(int fd)
-    {
-        return fcntl(fd, F_GETFL);
-    }
-}
 
 Kqueue::Kqueue(timespec _timeout)
 : timeout(_timeout)
