@@ -64,8 +64,6 @@ Server::Server (const char* _port)
 {
     setup();
     kq.register_kEvent(listenSocket, EVFILT::READ, EV_ADD, 0, serverData);
-    kq.register_uEvent(0, EV_ONESHOT, 0, userData);
-
 }
 
 Server::~Server ()
@@ -88,18 +86,18 @@ void Server::setup ()
 
     status = getaddrinfo(nullptr, port.c_str(), &hints, &tempInfo);
     if (status != 0)
-        throw std::runtime_error(std::format("Line: {} : {}", __LINE__, gai_strerror(status)));
+        throw Server_Error(gai_strerror(status));
 
     serverInfo = tempInfo;
     while (serverInfo != nullptr)
     {
         listenSocket = socket(serverInfo->ai_family, serverInfo->ai_socktype, serverInfo->ai_protocol);
         if (listenSocket == -1)
-            throw std::runtime_error(std::format("Line: {} : {}", __LINE__, std::strerror(errno)));
+            throw Server_Error(std::strerror(errno));
 
         status = setsockopt(listenSocket, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option));
         if (status == -1)
-            throw std::runtime_error(std::format("Line: {} : {}", __LINE__, std::strerror(errno)));
+            throw Server_Error(std::strerror(errno));
         
         status = bind(listenSocket, serverInfo->ai_addr, serverInfo->ai_addrlen);
         if (status == -1)
@@ -114,7 +112,7 @@ void Server::setup ()
 
     freeaddrinfo(tempInfo);
     if (serverInfo == nullptr)
-        throw std::runtime_error("failed to bind");
+        throw Server_Error("failed to bind");
     
     std::cout << GREEN << "server bound" << RESET << std::endl;
 }
@@ -130,7 +128,7 @@ void Server::run ()
 void Server::listen (int qSize)
 {
     if (::listen(listenSocket, qSize) == -1)
-        throw std::runtime_error(std::format("Line: {} : {}", __LINE__, std::strerror(errno)));
+        throw Server_Error(std::strerror(errno));
     std::cout << GREEN << "server is listening on port: " << WHITE << port << RESET << std::endl;
 }
 
@@ -139,19 +137,16 @@ void Server::accept ()
     std::string clientAddress = {};
     sockaddr_storage connection = {};
     socklen_t connectionSize = 0;
-    auto callBack = [&](auto&& event) {this->client_callback(event);};
     int clientFd = 0;
 
     connectionSize = sizeof(connection);
     clientFd = ::accept (listenSocket, reinterpret_cast<sockaddr*>(&connection), &connectionSize);
     if (clientFd == -1)
-        throw std::runtime_error(std::format("Line: {} : {}", __LINE__, std::strerror(errno)));
+        throw Server_Error(std::strerror(errno));
     
     clientAddress = address(connection);
     kq.register_kEvent(clientFd, EVFILT::READ, EV_ADD, 0, clientData);
     std::cout << "[" << clientNumber++ << "] " << GREEN << "CLIENT CONNECTED" << RESET << std::endl;
-    kq.update_uEvent(0, EV_ONESHOT, NOTE_TRIGGER, userData);
-
 }
 
 void Server::client_callback (struct kevent* event)
@@ -181,4 +176,12 @@ void Server::server_callback (struct kevent* event)
 void Server::userData_callback (struct kevent* event)
 {
     std::cout << "HELLO FROM USER LAND!!!!" << std::endl;
+}
+
+Server_Error::Server_Error (std::string msg, std::source_location location)
+: message (std::format("{}:{} {}", location.file_name(), location.line(), msg))
+{}
+const char* Server_Error::what() const noexcept
+{
+    return message.c_str();
 }

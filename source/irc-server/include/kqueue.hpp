@@ -117,13 +117,10 @@ class Kqueue
 
 class Kqueue_Error : public std::exception
 {
-    public:
+    private:
         std::string message;
-        std::string fileName;
-        int line;
-        std::string fullmsg;
-        
-        Kqueue_Error (std::string _message, std::source_location location = std::source_location::current());
+    public:
+        Kqueue_Error (std::string msg, std::source_location location = std::source_location::current());
         virtual const char* what() const noexcept;
 };
 

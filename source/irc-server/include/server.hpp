@@ -1,4 +1,5 @@
 #include <exception>
+#include <source_location>
 #ifndef SERVER_HPP
 #include <string>
 
@@ -33,6 +34,15 @@ private:
     void client_callback(struct kevent* event);
     void server_callback (struct kevent* event);
     void userData_callback (struct kevent* event);
+};
+
+class Server_Error : std::exception
+{
+    private:
+        std::string message;
+    public:
+        Server_Error (std::string msg, std::source_location = std::source_location::current());
+        virtual const char* what() const noexcept;
 };
 
 #endif

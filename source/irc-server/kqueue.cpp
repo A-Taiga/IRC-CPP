@@ -179,13 +179,10 @@ void Kqueue::remove_event(int ident, Type type)
     }
 }
 
-Kqueue_Error::Kqueue_Error (std::string _message, std::source_location location)
-: message (_message)
-, fileName (location.file_name())
-, line (location.line())
-, fullmsg(std::format("{}:{} {}", fileName, line, message))
+Kqueue_Error::Kqueue_Error (std::string msg, std::source_location location)
+: message(std::format("{}:{} {}", location.file_name(), location.line(), msg))
 {}
 const char* Kqueue_Error::what() const noexcept
 {
-    return fullmsg.c_str();
+    return message.c_str();
 }
