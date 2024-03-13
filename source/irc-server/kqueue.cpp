@@ -29,7 +29,7 @@ void Kqueue::register_kEvent (fileDescriptor ident , EVFILT filter, unsigned sho
         throw Kqueue_Error("fd is already in the kq change list");
     
     changeList.push_back({});
-    EV_SET( &changeList.back(), ident, static_cast<short> (filter), flags, fflags, 0, (void*) &(data));
+    EV_SET( &changeList.back(), ident, static_cast<short> (filter), EV_ADD | flags, fflags, 0, (void*) &(data));
     int ret = ::kevent(kq, &changeList.back(), 1, nullptr, 0, &timeout);
     if (ret == -1)
         throw Kqueue_Error("REGISTER");
@@ -61,6 +61,7 @@ void Kqueue::update_kEvent (fileDescriptor ident, EVFILT filter, unsigned short 
     changeList[index].fflags = fflags;
     changeList[index].udata = (void*) &data;
     data.type = Type::KERNEL;
+    kevent(kq, &changeList[indexMap[ident]], 1, nullptr, 0, &timeout);
 }
 
 void Kqueue::update_kEvent (fileDescriptor ident, EVFILT filter, unsigned short flags, unsigned int fflags)
@@ -72,6 +73,7 @@ void Kqueue::update_kEvent (fileDescriptor ident, EVFILT filter, unsigned short 
     changeList[index].filter = static_cast<short> (filter);
     changeList[index].flags = flags;
     changeList[index].fflags = fflags;
+    kevent(kq, &changeList[indexMap[ident]], 1, nullptr, 0, &timeout);
 }
 
 void Kqueue::register_uEvent (userDescriptor ident, unsigned short flags, unsigned int fflags, Udata& data)
@@ -109,6 +111,7 @@ void Kqueue::update_uEvent (userDescriptor ident, unsigned short flags, unsigned
     changeList[index].fflags = fflags;
     changeList[index].udata = (void*) &data;
     data.type = Type::USER;
+    kevent(kq, &changeList[indexMap[ident]], 1, nullptr, 0, &timeout);
 
 }
 
@@ -120,6 +123,7 @@ void Kqueue::update_uEvent (userDescriptor ident, unsigned short flags, unsigned
     std::size_t index = indexMap[ident];
     changeList[index].flags = flags;
     changeList[index].fflags = fflags;
+    kevent(kq, &changeList[indexMap[ident]], 1, nullptr, 0, &timeout);
 }
 
 void Kqueue::handle_events ()
@@ -134,10 +138,6 @@ void Kqueue::handle_events ()
     {
         struct kevent* ev = &eventList[i];
         Udata* ud = (Udata*)ev->udata;
-        // std::cout << "======================" << std::endl;
-        // std::cout << std::format("changeList: {}\nnChanges: {}", changeList.size(), nChanges) << std::endl;
-        // std::cout << "======================" << std::endl;
-
         if (ev->flags & EV_ERROR)
         {
             std::cout << strerror(errno) << std::endl;
@@ -150,7 +150,11 @@ void Kqueue::handle_events ()
                 std::cout << e.what() << std::endl;
             }
         }
-        else if (ev->flags & EV_ONESHOT)
+        else
+        {
+            ud->callback(ev);
+        }
+        if (ev->flags & EV_ONESHOT)
         {
             try
             {
@@ -160,10 +164,6 @@ void Kqueue::handle_events ()
             {
                 std::cout << e.what() << std::endl;
             }
-        }
-        else
-        {
-            ud->callback(ev);
         }
     }
 }
@@ -179,15 +179,10 @@ void Kqueue::remove_event(int ident, Type type)
     }
 }
 
-
-Kqueue_Error::Kqueue_Error (std::string _message, std::source_location location)
-: message (_message)
-, fileName (location.file_name())
-, line (location.line())
-{
-    fullmsg = std::format("{}:{} {}", fileName, line, message);
-}
+Kqueue_Error::Kqueue_Error (std::string msg, std::source_location location)
+: message(std::format("{}:{} {}", location.file_name(), location.line(), msg))
+{}
 const char* Kqueue_Error::what() const noexcept
 {
-    return fullmsg.c_str();
+    return message.c_str();
 }
