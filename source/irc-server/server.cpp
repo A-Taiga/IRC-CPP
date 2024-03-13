@@ -186,6 +186,9 @@ void Server::userData_callback (struct kevent* event)
 Server_Error::Server_Error (std::string msg, std::source_location location)
 : message (std::format("{}:{} {}", location.file_name(), location.line(), msg))
 {}
+Server_Error::Server_Error (std::source_location location)
+: message (std::format("{}:{}", location.file_name(), location.line()))
+{}
 const char* Server_Error::what() const noexcept
 {
     return message.c_str();
