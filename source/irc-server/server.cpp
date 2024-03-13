@@ -1,6 +1,8 @@
 #include "server.hpp"
 #include "kqueue.hpp"
+#include <__functional/bind.h>
 #include <exception>
+#include <future>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <stdexcept>
@@ -31,6 +33,7 @@
 #define B_MAGENTA  "\x1B[45;1m"
 #define B_CYAN     "\x1B[46;1m"
 #define B_WHITE    "\x1B[47;1m"
+void server_callback (struct kevent* event, Server& server);
 
 namespace
 {
@@ -54,6 +57,7 @@ namespace
 
 static int clientNumber = 0;
 static int clientDNumber = 0;
+
 
 Server::Server (const char* _port)
 : kq ({5,0})
@@ -147,6 +151,7 @@ void Server::accept ()
     clientAddress = address(connection);
     kq.register_kEvent(clientFd, EVFILT::READ, EV_ADD, 0, clientData);
     std::cout << "[" << clientNumber++ << "] " << GREEN << "CLIENT CONNECTED" << RESET << std::endl;
+
 }
 
 void Server::client_callback (struct kevent* event)
@@ -164,7 +169,7 @@ void Server::client_callback (struct kevent* event)
         bzero(buffer, sizeof(buffer));
         std::cout << "SENDING DATA" << std::endl;
         ::recv(event->ident, buffer, sizeof(buffer), 0);
-        std::cout << buffer;
+        puts(buffer);
     }
 }
 

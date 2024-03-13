@@ -121,6 +121,8 @@ class Kqueue_Error : public std::exception
         std::string message;
     public:
         Kqueue_Error (std::string msg, std::source_location location = std::source_location::current());
+        Kqueue_Error (std::source_location location = std::source_location::current());
+
         virtual const char* what() const noexcept;
 };
 
@@ -130,7 +132,6 @@ class Kqueue_Error : public std::exception
 look into EV_DISPATCH
 close everything on SIGINT
 move EV_EOF back into this class
-maybe change the variant to strongly typed ints
 */
 
 

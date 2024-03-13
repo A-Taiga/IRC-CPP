@@ -32,7 +32,7 @@ void Kqueue::register_kEvent (fileDescriptor ident , EVFILT filter, unsigned sho
     EV_SET( &changeList.back(), ident, static_cast<short> (filter), EV_ADD | flags, fflags, 0, (void*) &(data));
     int ret = ::kevent(kq, &changeList.back(), 1, nullptr, 0, &timeout);
     if (ret == -1)
-        throw Kqueue_Error("REGISTER");
+        throw Kqueue_Error();
 
     indexMap[ident] = changeList.size()-1;
     data.type = Type::KERNEL;
@@ -51,7 +51,6 @@ void Kqueue::unregister_kEvent (fileDescriptor ident)
 
 void Kqueue::update_kEvent (fileDescriptor ident, EVFILT filter, unsigned short flags, unsigned int fflags, Udata& data)
 {
-
     if (indexMap.find(ident) != indexMap.end())
         throw Kqueue_Error("fd is not found in the change list");
     
@@ -85,7 +84,7 @@ void Kqueue::register_uEvent (userDescriptor ident, unsigned short flags, unsign
     EV_SET( &changeList.back(), ident, EVFILT_USER, EV_ADD | flags, fflags, 0, static_cast<void*>(&data));
     int ret = ::kevent(kq, &changeList.back(), 1, nullptr, 0, &timeout);
     if (ret == -1)
-        throw Kqueue_Error("REGISTER UEVENT");
+        throw Kqueue_Error();
     
     indexMap[ident] = changeList.size()-1;
     data.type = Type::USER;
@@ -132,7 +131,7 @@ void Kqueue::handle_events ()
     struct kevent eventList[MAX_EVENTS];
     nChanges = ::kevent(kq, NULL, 0, eventList, MAX_EVENTS, &timeout);
     if (nChanges == -1)
-        throw Kqueue_Error("nChanges");
+        throw Kqueue_Error();
 
     for (int i = 0; i < nChanges; i++)
     {
@@ -181,6 +180,9 @@ void Kqueue::remove_event(int ident, Type type)
 
 Kqueue_Error::Kqueue_Error (std::string msg, std::source_location location)
 : message(std::format("{}:{} {}", location.file_name(), location.line(), msg))
+{}
+Kqueue_Error::Kqueue_Error (std::source_location location)
+: message(std::format("{}:{}", location.file_name(), location.line()))
 {}
 const char* Kqueue_Error::what() const noexcept
 {
