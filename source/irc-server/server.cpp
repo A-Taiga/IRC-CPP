@@ -6,13 +6,11 @@
 #include <stdexcept>
 #include <strings.h>
 #include <sys/event.h>
-#include <sys/fcntl.h>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <iostream>
 #include <format>
-#include <fcntl.h>
 
 #define CLEAR   "\e[2J\e[3J\e[H"
 #define BLACK   "\x1B[30;1m"
@@ -51,11 +49,6 @@ namespace
         std::string address (INET6_ADDRSTRLEN, '\0');
         inet_ntop (client.ss_family, in_addr(reinterpret_cast<sockaddr*> (&client)), address.data(), address.length());
         return address;
-    }
-
-    int is_valid_fd(int fd)
-    {
-        return fcntl(fd, F_GETFL);
     }
 }
 
