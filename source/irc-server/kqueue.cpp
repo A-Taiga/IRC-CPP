@@ -8,15 +8,7 @@
 #include <unistd.h>
 #include <iostream>
 #include <utility>
-#include <fcntl.h>
 
-namespace
-{
-    int is_valid_fd(int fd)
-    {
-        return fcntl(fd, F_GETFL);
-    }
-}
 
 Kqueue::Kqueue(timespec _timeout)
 : timeout(_timeout)
@@ -33,8 +25,6 @@ Kqueue::~Kqueue()
 
 void Kqueue::register_kEvent (fileDescriptor ident , EVFILT filter, unsigned short flags, unsigned int fflags, Udata& data)
 {
-    if(is_valid_fd(ident) == -1)
-        throw "invalid fd";
     if (indexMap.find(ident) != indexMap.end())
         throw Kqueue_Error("fd is already in the kq change list");
     

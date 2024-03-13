@@ -1,3 +1,4 @@
+#include <exception>
 #ifndef SERVER_HPP
 #include <string>
 
@@ -33,6 +34,5 @@ private:
     void server_callback (struct kevent* event);
     void userData_callback (struct kevent* event);
 };
-
 
 #endif
