@@ -1,6 +1,7 @@
 #include "server.hpp"
 #include "kqueue.hpp"
 #include <__functional/bind.h>
+#include <cstdlib>
 #include <exception>
 #include <future>
 #include <netdb.h>
@@ -8,11 +9,13 @@
 #include <stdexcept>
 #include <strings.h>
 #include <sys/event.h>
+#include <sys/signal.h>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <iostream>
 #include <format>
+#include <signal.h>
 
 #define CLEAR   "\e[2J\e[3J\e[H"
 #define BLACK   "\x1B[30;1m"
@@ -59,6 +62,8 @@ static int clientNumber = 0;
 static int clientDNumber = 0;
 
 
+
+
 Server::Server (const char* _port)
 : kq ({5,0})
 , serverData {[&](auto&& arg){this->server_callback(arg);}}
@@ -68,12 +73,15 @@ Server::Server (const char* _port)
 {
     setup();
     kq.register_kEvent(listenSocket, EVFILT::READ, EV_ADD, 0, serverData);
+
 }
 
 Server::~Server ()
 {
     close(listenSocket);
 }
+
+
 
 void Server::setup ()
 {
@@ -186,9 +194,11 @@ void Server::userData_callback (struct kevent* event)
 Server_Error::Server_Error (std::string msg, std::source_location location)
 : message (std::format("{}:{} {}", location.file_name(), location.line(), msg))
 {}
+
 Server_Error::Server_Error (std::source_location location)
 : message (std::format("{}:{}", location.file_name(), location.line()))
 {}
+
 const char* Server_Error::what() const noexcept
 {
     return message.c_str();

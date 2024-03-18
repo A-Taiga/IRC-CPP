@@ -95,23 +95,21 @@ class Kqueue
     public:
         Kqueue (timespec _timeout);
         ~Kqueue ();
-        /* register a kernel event */
         void register_kEvent (fileDescriptor ident, EVFILT filter, unsigned short flags, unsigned int fflags, Udata& data);
-        /* unregister a kernel event */
         void unregister_kEvent (fileDescriptor ident);
-        /* update kernel event */
-        void update_kEvent (fileDescriptor ident, EVFILT filter, unsigned short flags, unsigned int fflags, Udata& data);
-        /* update kernel event */
+        void update_kEvent  (fileDescriptor ident, EVFILT filter, unsigned short flags, unsigned int fflags, Udata& data);
         void update_kEvent (fileDescriptor ident, EVFILT filter, unsigned short flags, unsigned int fflags);
-        /* register user event */
+        
         void register_uEvent (userDescriptor ident, unsigned short flags, unsigned int fflags, Udata& data);
-        /* unregister kernel event */
         void unregister_uEvent (userDescriptor ident);
-        /* update user event */
         void update_uEvent(userDescriptor ident, unsigned short flags, unsigned int fflags, Udata& data);
-        /* update user event */
         void update_uEvent (userDescriptor ident, unsigned short flags, unsigned int fflags);
-        /* run kqueue */
+
+        void register_signal (signalDescriptor ident, unsigned short flags, unsigned int fflags, Udata& data);
+        void unregister_signal (signalDescriptor ident);
+        void update_signal (signalDescriptor ident, unsigned short flags, unsigned int fflags, Udata& data);
+        void update_signal (signalDescriptor ident, unsigned short flags, unsigned int fflags);
+
         void handle_events ();
 };
 

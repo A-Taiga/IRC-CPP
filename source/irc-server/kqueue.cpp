@@ -32,7 +32,7 @@ void Kqueue::register_kEvent (fileDescriptor ident , EVFILT filter, unsigned sho
     EV_SET( &changeList.back(), ident, static_cast<short> (filter), EV_ADD | flags, fflags, 0, (void*) &(data));
     int ret = ::kevent(kq, &changeList.back(), 1, nullptr, 0, &timeout);
     if (ret == -1)
-        throw Kqueue_Error();
+        throw Kqueue_Error(std::strerror(errno));
 
     indexMap[ident] = changeList.size()-1;
     data.type = Type::KERNEL;
@@ -43,7 +43,7 @@ void Kqueue::unregister_kEvent (fileDescriptor ident)
     if (indexMap.find(ident) == indexMap.end())
         throw Kqueue_Error ("fd is not found in the change list");
     
-    std::swap(changeList[indexMap[fileDescriptor(ident)]], changeList.back());
+    std::swap(changeList[indexMap[ident]], changeList.back());
     changeList.pop_back();
     indexMap.erase(ident);
     close(ident);
@@ -125,6 +125,56 @@ void Kqueue::update_uEvent (userDescriptor ident, unsigned short flags, unsigned
     kevent(kq, &changeList[indexMap[ident]], 1, nullptr, 0, &timeout);
 }
 
+
+void Kqueue::register_signal (signalDescriptor ident, unsigned short flags, unsigned int fflags, Udata& data)
+{
+    if(indexMap.find(ident) != indexMap.end())
+        throw Kqueue_Error("signal is already in the kq change list");
+    
+    changeList.push_back({});
+    EV_SET(&changeList.back(), ident, static_cast<short> (EVFILT::SIGNAL), EV_ADD | flags, fflags, 0, (void*) &(data));
+    int ret = ::kevent(kq, &changeList.back(), 1, nullptr, 0, &timeout);
+    if (ret == -1)
+        throw Kqueue_Error(std::strerror(errno));
+
+    indexMap[ident] = changeList.size()-1;
+    data.type = Type::SIGNAL;
+}
+
+void Kqueue::unregister_signal (signalDescriptor ident)
+{
+    if(indexMap.find(ident) == indexMap.end())
+        throw Kqueue_Error ("signal is not found in the change list");
+
+    std::swap(changeList[indexMap[ident]], changeList.back());
+    changeList.pop_back();
+    indexMap.erase(ident);
+}
+
+void Kqueue::update_signal (signalDescriptor ident, unsigned short flags, unsigned int fflags, Udata& data)
+{
+    if (indexMap.find(ident) == indexMap.end())
+        throw Kqueue_Error("signal is not found in the change list");
+
+    std::size_t index = indexMap[ident];
+    changeList[index].flags = flags;
+    changeList[index].fflags = fflags;
+    changeList[index].udata = (void*) &data;
+    data.type = Type::SIGNAL;
+    kevent(kq, &changeList[indexMap[ident]], 1, nullptr, 0, &timeout);
+}
+
+void Kqueue::update_signal (signalDescriptor ident, unsigned short flags, unsigned int fflags)
+{
+    if (indexMap.find(ident) == indexMap.end())
+        throw Kqueue_Error("signal is not found in the change list");
+    
+    std::size_t index = indexMap[ident];
+    changeList[index].flags = flags;
+    changeList[index].fflags = fflags;
+    kevent(kq, &changeList[indexMap[ident]], 1, nullptr, 0, &timeout);
+}
+
 void Kqueue::handle_events ()
 {
     int nChanges;
@@ -177,6 +227,8 @@ void Kqueue::remove_event(int ident, Type type)
         case Type::UNKNOWN: throw Kqueue_Error("Type is unknown");
     }
 }
+
+
 
 Kqueue_Error::Kqueue_Error (std::string msg, std::source_location location)
 : message(std::format("{}:{} {}", location.file_name(), location.line(), msg))
