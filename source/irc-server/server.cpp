@@ -73,7 +73,6 @@ Server::Server (const char* _port)
 {
     setup();
     kq.register_kEvent(listenSocket, EVFILT::READ, EV_ADD, 0, serverData);
-
 }
 
 Server::~Server ()

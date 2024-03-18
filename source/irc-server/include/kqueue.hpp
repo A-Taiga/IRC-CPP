@@ -18,6 +18,7 @@ enum class Type: short
     KERNEL,
     USER,
     SIGNAL,
+    TIMER,
     UNKNOWN,
 };
 
@@ -41,22 +42,28 @@ struct std::hash<genericDescriptor>
     }
 };
 
-struct fileDescriptor : genericDescriptor
+struct fileD_t : genericDescriptor
 {
-    fileDescriptor (): genericDescriptor(Type::KERNEL){}
-    fileDescriptor (int value) : genericDescriptor(value, Type::KERNEL){}
+    fileD_t () : genericDescriptor(Type::KERNEL){}
+    fileD_t (int value) : genericDescriptor(value, Type::KERNEL){}
 };
 
-struct userDescriptor : genericDescriptor
+struct userD_t : genericDescriptor
 {
-    userDescriptor (): genericDescriptor(Type::USER){}
-    userDescriptor (int value) : genericDescriptor(value, Type::USER){}
+    userD_t () : genericDescriptor(Type::USER){}
+    userD_t (int value) : genericDescriptor(value, Type::USER){}
 };
 
-struct signalDescriptor : genericDescriptor
+struct signalD_t : genericDescriptor
 {
-    signalDescriptor (): genericDescriptor(Type::SIGNAL){}
-    signalDescriptor (int value) : genericDescriptor(value, Type::SIGNAL){}
+    signalD_t () : genericDescriptor(Type::SIGNAL){}
+    signalD_t (int value) : genericDescriptor(value, Type::SIGNAL){}
+};
+
+struct timerD_t : genericDescriptor
+{
+    timerD_t () : genericDescriptor(Type::TIMER){}
+    timerD_t (int value) : genericDescriptor(value, Type::SIGNAL){}
 };
 
 enum class EVFILT: short
@@ -95,20 +102,25 @@ class Kqueue
     public:
         Kqueue (timespec _timeout);
         ~Kqueue ();
-        void register_kEvent (fileDescriptor ident, EVFILT filter, unsigned short flags, unsigned int fflags, Udata& data);
-        void unregister_kEvent (fileDescriptor ident);
-        void update_kEvent  (fileDescriptor ident, EVFILT filter, unsigned short flags, unsigned int fflags, Udata& data);
-        void update_kEvent (fileDescriptor ident, EVFILT filter, unsigned short flags, unsigned int fflags);
+        void register_kEvent (fileD_t ident, EVFILT filter, unsigned short flags, unsigned int fflags, Udata& data);
+        void unregister_kEvent (fileD_t ident);
+        void update_kEvent  (fileD_t ident, EVFILT filter, unsigned short flags, unsigned int fflags, Udata& data);
+        void update_kEvent (fileD_t ident, EVFILT filter, unsigned short flags, unsigned int fflags);
         
-        void register_uEvent (userDescriptor ident, unsigned short flags, unsigned int fflags, Udata& data);
-        void unregister_uEvent (userDescriptor ident);
-        void update_uEvent(userDescriptor ident, unsigned short flags, unsigned int fflags, Udata& data);
-        void update_uEvent (userDescriptor ident, unsigned short flags, unsigned int fflags);
+        void register_uEvent (userD_t ident, unsigned short flags, unsigned int fflags, Udata& data);
+        void unregister_uEvent (userD_t ident);
+        void update_uEvent(userD_t ident, unsigned short flags, unsigned int fflags, Udata& data);
+        void update_uEvent (userD_t ident, unsigned short flags, unsigned int fflags);
 
-        void register_signal (signalDescriptor ident, unsigned short flags, unsigned int fflags, Udata& data);
-        void unregister_signal (signalDescriptor ident);
-        void update_signal (signalDescriptor ident, unsigned short flags, unsigned int fflags, Udata& data);
-        void update_signal (signalDescriptor ident, unsigned short flags, unsigned int fflags);
+        void register_signal (signalD_t ident, unsigned short flags, unsigned int fflags, Udata& data);
+        void unregister_signal (signalD_t ident);
+        void update_signal (signalD_t ident, unsigned short flags, unsigned int fflags, Udata& data);
+        void update_signal (signalD_t ident, unsigned short flags, unsigned int fflags);
+
+        void register_timer (signalD_t ident, unsigned short flags, unsigned int fflags, Udata& data);
+        void unregister_timer (signalD_t ident);
+        void update_timer (signalD_t ident, unsigned short flags, unsigned int fflags, Udata& data);
+        void update_timer (signalD_t ident, unsigned short flags, unsigned int fflags);
 
         void handle_events ();
 };

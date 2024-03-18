@@ -23,7 +23,7 @@ Kqueue::~Kqueue()
     close(kq);
 }
 
-void Kqueue::register_kEvent (fileDescriptor ident , EVFILT filter, unsigned short flags, unsigned int fflags, Udata& data)
+void Kqueue::register_kEvent (fileD_t ident , EVFILT filter, unsigned short flags, unsigned int fflags, Udata& data)
 {
     if (indexMap.find(ident) != indexMap.end())
         throw Kqueue_Error("fd is already in the kq change list");
@@ -38,7 +38,7 @@ void Kqueue::register_kEvent (fileDescriptor ident , EVFILT filter, unsigned sho
     data.type = Type::KERNEL;
 }
 
-void Kqueue::unregister_kEvent (fileDescriptor ident)
+void Kqueue::unregister_kEvent (fileD_t ident)
 {
     if (indexMap.find(ident) == indexMap.end())
         throw Kqueue_Error ("fd is not found in the change list");
@@ -49,7 +49,7 @@ void Kqueue::unregister_kEvent (fileDescriptor ident)
     close(ident);
 }
 
-void Kqueue::update_kEvent (fileDescriptor ident, EVFILT filter, unsigned short flags, unsigned int fflags, Udata& data)
+void Kqueue::update_kEvent (fileD_t ident, EVFILT filter, unsigned short flags, unsigned int fflags, Udata& data)
 {
     if (indexMap.find(ident) != indexMap.end())
         throw Kqueue_Error("fd is not found in the change list");
@@ -63,7 +63,7 @@ void Kqueue::update_kEvent (fileDescriptor ident, EVFILT filter, unsigned short 
     kevent(kq, &changeList[indexMap[ident]], 1, nullptr, 0, &timeout);
 }
 
-void Kqueue::update_kEvent (fileDescriptor ident, EVFILT filter, unsigned short flags, unsigned int fflags)
+void Kqueue::update_kEvent (fileD_t ident, EVFILT filter, unsigned short flags, unsigned int fflags)
 {
     if (indexMap.find(ident) != indexMap.end())
         throw Kqueue_Error("fd is not found in the change list");
@@ -75,7 +75,7 @@ void Kqueue::update_kEvent (fileDescriptor ident, EVFILT filter, unsigned short 
     kevent(kq, &changeList[indexMap[ident]], 1, nullptr, 0, &timeout);
 }
 
-void Kqueue::register_uEvent (userDescriptor ident, unsigned short flags, unsigned int fflags, Udata& data)
+void Kqueue::register_uEvent (userD_t ident, unsigned short flags, unsigned int fflags, Udata& data)
 {
 
     if (indexMap.find(ident) != indexMap.end())
@@ -90,7 +90,7 @@ void Kqueue::register_uEvent (userDescriptor ident, unsigned short flags, unsign
     data.type = Type::USER;
 }
 
-void Kqueue::unregister_uEvent (userDescriptor ident)
+void Kqueue::unregister_uEvent (userD_t ident)
 {
     if (indexMap.find(ident) == indexMap.end())
         throw Kqueue_Error("dent is not found in the change list");
@@ -100,7 +100,7 @@ void Kqueue::unregister_uEvent (userDescriptor ident)
     indexMap.erase(ident);
 }
 
-void Kqueue::update_uEvent (userDescriptor ident, unsigned short flags, unsigned int fflags, Udata& data)
+void Kqueue::update_uEvent (userD_t ident, unsigned short flags, unsigned int fflags, Udata& data)
 {
     if (indexMap.find(ident) == indexMap.end())
         throw Kqueue_Error("ident is not found in the change list");
@@ -114,7 +114,7 @@ void Kqueue::update_uEvent (userDescriptor ident, unsigned short flags, unsigned
 
 }
 
-void Kqueue::update_uEvent (userDescriptor ident, unsigned short flags, unsigned int fflags)
+void Kqueue::update_uEvent (userD_t ident, unsigned short flags, unsigned int fflags)
 {
     if (indexMap.find(ident) == indexMap.end())
         throw Kqueue_Error("ident is not found in the change list");
@@ -126,7 +126,7 @@ void Kqueue::update_uEvent (userDescriptor ident, unsigned short flags, unsigned
 }
 
 
-void Kqueue::register_signal (signalDescriptor ident, unsigned short flags, unsigned int fflags, Udata& data)
+void Kqueue::register_signal (signalD_t ident, unsigned short flags, unsigned int fflags, Udata& data)
 {
     if(indexMap.find(ident) != indexMap.end())
         throw Kqueue_Error("signal is already in the kq change list");
@@ -141,7 +141,7 @@ void Kqueue::register_signal (signalDescriptor ident, unsigned short flags, unsi
     data.type = Type::SIGNAL;
 }
 
-void Kqueue::unregister_signal (signalDescriptor ident)
+void Kqueue::unregister_signal (signalD_t ident)
 {
     if(indexMap.find(ident) == indexMap.end())
         throw Kqueue_Error ("signal is not found in the change list");
@@ -151,7 +151,7 @@ void Kqueue::unregister_signal (signalDescriptor ident)
     indexMap.erase(ident);
 }
 
-void Kqueue::update_signal (signalDescriptor ident, unsigned short flags, unsigned int fflags, Udata& data)
+void Kqueue::update_signal (signalD_t ident, unsigned short flags, unsigned int fflags, Udata& data)
 {
     if (indexMap.find(ident) == indexMap.end())
         throw Kqueue_Error("signal is not found in the change list");
@@ -164,7 +164,7 @@ void Kqueue::update_signal (signalDescriptor ident, unsigned short flags, unsign
     kevent(kq, &changeList[indexMap[ident]], 1, nullptr, 0, &timeout);
 }
 
-void Kqueue::update_signal (signalDescriptor ident, unsigned short flags, unsigned int fflags)
+void Kqueue::update_signal (signalD_t ident, unsigned short flags, unsigned int fflags)
 {
     if (indexMap.find(ident) == indexMap.end())
         throw Kqueue_Error("signal is not found in the change list");
@@ -223,7 +223,8 @@ void Kqueue::remove_event(int ident, Type type)
     {
         case Type::KERNEL:  unregister_kEvent(ident); break;
         case Type::USER:    unregister_uEvent(ident); break;
-        case Type::SIGNAL:  break;
+        case Type::SIGNAL:  unregister_timer(ident); break;
+        case Type::TIMER:   unregister_timer(ident); break;
         case Type::UNKNOWN: throw Kqueue_Error("Type is unknown");
     }
 }
