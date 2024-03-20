@@ -1,3 +1,4 @@
+
 #ifndef KQUEUE_HPP
 #define KQUEUE_HPP
 
@@ -20,6 +21,12 @@ enum class Type: short
     SIGNAL,
     TIMER,
     UNKNOWN,
+};
+
+enum class Timer_N: unsigned int
+{
+    ABSOLUTE = NOTE_ABSOLUTE,
+    NONE,
 };
 
 struct genericDescriptor
@@ -117,11 +124,22 @@ class Kqueue
         void update_signal (signalD_t ident, unsigned short flags, unsigned int fflags, Udata& data);
         void update_signal (signalD_t ident, unsigned short flags, unsigned int fflags);
 
-        void register_timer (signalD_t ident, unsigned short flags, unsigned int fflags, Udata& data);
-        void unregister_timer (signalD_t ident);
-        void update_timer (signalD_t ident, unsigned short flags, unsigned int fflags, Udata& data);
-        void update_timer (signalD_t ident, unsigned short flags, unsigned int fflags);
-
+/* todo */
+/*
+    add timer coalescing
+*/  
+        void register_timer_seconds(timerD_t ident, int time, Udata& data, bool once = false);
+        void register_timer_milliseconds(timerD_t ident, int time, Udata& data, bool once = false);
+        void register_timer_microseconds(timerD_t ident, int time, Udata& data, bool once = false);
+        void register_timer_nanoseconds(timerD_t ident, int time, Udata& data, bool once = false);
+        #if defined(__MACH__) || defined(__APPLE__)
+        void register_timer_machtime(timerD_t ident, int time, Udata& data, bool once = false);
+        #endif
+        void remove_timer(timerD_t ident);
+    private:
+        void timer_helper(const timerD_t& ident, const int& time, unsigned short flags, unsigned int fflag, const Udata& data);
+    
+    public:
         void handle_events ();
 };
 
@@ -140,8 +158,6 @@ class Kqueue_Error : public std::exception
 
 /*
 look into EV_DISPATCH
-close everything on SIGINT
-move EV_EOF back into this class
 */
 
 

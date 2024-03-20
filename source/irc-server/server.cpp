@@ -73,6 +73,13 @@ Server::Server (const char* _port)
 {
     setup();
     kq.register_kEvent(listenSocket, EVFILT::READ, EV_ADD, 0, serverData);
+    static auto l = [&](auto&& arg)
+    {
+        std::cout << arg->data << std::endl;
+    };
+    static Udata d = {l};
+    kq.register_timer_milliseconds(1, 500, d);
+
 }
 
 Server::~Server ()
