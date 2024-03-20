@@ -42,7 +42,10 @@ void Kqueue::unregister_kEvent (fileD_t ident)
 {
     if (indexMap.find(ident) == indexMap.end())
         throw Kqueue_Error ("fd is not found in the change list");
-    
+
+    changeList[indexMap[ident]].flags = EV_DELETE;
+    ::kevent(kq, &changeList[indexMap[ident]], 1, nullptr, 0, &timeout);
+
     std::swap(changeList[indexMap[ident]], changeList.back());
     changeList.pop_back();
     indexMap.erase(ident);
@@ -94,7 +97,10 @@ void Kqueue::unregister_uEvent (userD_t ident)
 {
     if (indexMap.find(ident) == indexMap.end())
         throw Kqueue_Error("dent is not found in the change list");
-        
+    
+    changeList[indexMap[ident]].flags = EV_DELETE;
+    ::kevent(kq, &changeList[indexMap[ident]], 1, nullptr, 0, &timeout);
+    
     std::swap(changeList[indexMap[ident]], changeList.back());
     changeList.pop_back();
     indexMap.erase(ident);
@@ -111,7 +117,6 @@ void Kqueue::update_uEvent (userD_t ident, unsigned short flags, unsigned int ff
     changeList[index].udata = (void*) &data;
     data.type = Type::USER;
     kevent(kq, &changeList[indexMap[ident]], 1, nullptr, 0, &timeout);
-
 }
 
 void Kqueue::update_uEvent (userD_t ident, unsigned short flags, unsigned int fflags)
@@ -145,6 +150,9 @@ void Kqueue::unregister_signal (signalD_t ident)
     if(indexMap.find(ident) == indexMap.end())
         throw Kqueue_Error ("signal is not found in the change list");
 
+    changeList[indexMap[ident]].flags = EV_DELETE;
+    ::kevent(kq, &changeList[indexMap[ident]], 1, nullptr, 0, &timeout);
+    
     std::swap(changeList[indexMap[ident]], changeList.back());
     changeList.pop_back();
     indexMap.erase(ident);
@@ -174,7 +182,7 @@ void Kqueue::update_signal (signalD_t ident, unsigned short flags, unsigned int 
     kevent(kq, &changeList[indexMap[ident]], 1, nullptr, 0, &timeout);
 }
 
-void Kqueue::register_timer_seconds(timerD_t ident, int time, Udata& data, bool once)
+void Kqueue::register_timer_seconds (timerD_t ident, int time, Udata& data, bool once)
 {
     if (indexMap.find(ident) != indexMap.end())
         throw Kqueue_Error("timer is already in the kq change list");
@@ -182,19 +190,15 @@ void Kqueue::register_timer_seconds(timerD_t ident, int time, Udata& data, bool 
     timer_helper(ident, time, once ? EV_ONESHOT : 0, NOTE_SECONDS, data);
 }
 
-void Kqueue::register_timer_milliseconds(timerD_t ident, int time, Udata& data, bool once)
+void Kqueue::register_timer_milliseconds (timerD_t ident, int time, Udata& data, bool once)
 {
     if (indexMap.find(ident) != indexMap.end())
         throw Kqueue_Error("timer is already in the kq change list");
     data.type = Type::TIMER;
-    #if defined(__BSD__)
-        timer_helper(ident, time, NOTE_MSECONDS, data);
-    #elif defined (__MACH__) || (__APPLE__)
-        timer_helper(ident, time, once ? EV_ONESHOT : 0, 0, data);
-    #endif
+    timer_helper(ident, time, once ? EV_ONESHOT : 0, 0, data);
 }
 
-void Kqueue::register_timer_microseconds(timerD_t ident, int time, Udata& data, bool once)
+void Kqueue::register_timer_microseconds (timerD_t ident, int time, Udata& data, bool once)
 {
     if (indexMap.find(ident) != indexMap.end())
         throw Kqueue_Error("timer is already in the kq change list");
@@ -202,7 +206,7 @@ void Kqueue::register_timer_microseconds(timerD_t ident, int time, Udata& data, 
     timer_helper(ident, time, once ? EV_ONESHOT : 0, NOTE_USECONDS, data);
 }
 
-void Kqueue::register_timer_nanoseconds(timerD_t ident, int time, Udata& data, bool once)
+void Kqueue::register_timer_nanoseconds (timerD_t ident, int time, Udata& data, bool once)
 {
     if (indexMap.find(ident) != indexMap.end())
         throw Kqueue_Error("timer is already in the kq change list");
@@ -211,7 +215,7 @@ void Kqueue::register_timer_nanoseconds(timerD_t ident, int time, Udata& data, b
 }
 
 #if defined(__MACH__) || defined(__APPLE__)
-void Kqueue::register_timer_machtime(timerD_t ident, int time, Udata& data, bool once)
+void Kqueue::register_timer_machtime (timerD_t ident, int time, Udata& data, bool once)
 {
     if (indexMap.find(ident) != indexMap.end())
         throw Kqueue_Error("timer is already in the kq change list");
@@ -220,17 +224,31 @@ void Kqueue::register_timer_machtime(timerD_t ident, int time, Udata& data, bool
 }
 #endif
 
-void Kqueue::remove_timer(timerD_t ident)
+void Kqueue::remove_timer (timerD_t ident)
 {
     if(indexMap.find(ident) == indexMap.end())
         throw Kqueue_Error ("timer is not found in the change list");
-
+    
+    changeList[indexMap[ident]].flags = EV_DELETE;
+    ::kevent(kq, &changeList[indexMap[ident]], 1, nullptr, 0, &timeout);
+    
     std::swap(changeList[indexMap[ident]], changeList.back());
     changeList.pop_back();
     indexMap.erase(ident);
 }
 
-void Kqueue::timer_helper(const timerD_t& ident, const int& time, unsigned short flags, unsigned int fflag, const Udata& data)
+void Kqueue::delete_timer (timerD_t ident)
+{
+    if(indexMap.find(ident) == indexMap.end())
+        throw Kqueue_Error ("timer is not found in the change list");
+    
+    changeList[indexMap[ident]].flags = EV_DELETE;
+    ::kevent(kq, &changeList[indexMap[ident]], 1, nullptr, 0, &timeout);
+    remove_timer(ident);
+    
+}
+
+void Kqueue::timer_helper (const timerD_t& ident, const int& time, unsigned short flags, unsigned int fflag, const Udata& data)
 {
     changeList.push_back({});
     EV_SET( &changeList.back(), ident, static_cast<short> (EVFILT::TIMER), EV_ADD | flags, fflag, time, (void*) &(data));

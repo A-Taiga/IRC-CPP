@@ -128,16 +128,17 @@ class Kqueue
 /*
     add timer coalescing
 */  
-        void register_timer_seconds(timerD_t ident, int time, Udata& data, bool once = false);
-        void register_timer_milliseconds(timerD_t ident, int time, Udata& data, bool once = false);
-        void register_timer_microseconds(timerD_t ident, int time, Udata& data, bool once = false);
-        void register_timer_nanoseconds(timerD_t ident, int time, Udata& data, bool once = false);
+        void register_timer_seconds (timerD_t ident, int time, Udata& data, bool once = false);
+        void register_timer_milliseconds (timerD_t ident, int time, Udata& data, bool once = false);
+        void register_timer_microseconds (timerD_t ident, int time, Udata& data, bool once = false);
+        void register_timer_nanoseconds (timerD_t ident, int time, Udata& data, bool once = false);
         #if defined(__MACH__) || defined(__APPLE__)
-        void register_timer_machtime(timerD_t ident, int time, Udata& data, bool once = false);
+        void register_timer_machtime (timerD_t ident, int time, Udata& data, bool once = false);
         #endif
         void remove_timer(timerD_t ident);
+        void delete_timer (timerD_t ident);
     private:
-        void timer_helper(const timerD_t& ident, const int& time, unsigned short flags, unsigned int fflag, const Udata& data);
+        void timer_helper (const timerD_t& ident, const int& time, unsigned short flags, unsigned int fflag, const Udata& data);
     
     public:
         void handle_events ();
