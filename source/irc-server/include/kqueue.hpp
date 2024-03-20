@@ -4,15 +4,11 @@
 
 #include <exception>
 #include <sys/event.h>
-#include <type_traits>
 #include <vector>
 #include <functional>
 #include <source_location>
-#include <variant>
 
 #define MAX_EVENTS 10000
-
-
 
 enum class Type: short
 {
@@ -32,10 +28,10 @@ enum class Timer_N: unsigned int
 struct genericDescriptor
 {
     int value;
-    genericDescriptor (Type _type = Type::UNKNOWN): type(_type) {}
-    genericDescriptor (int _value, Type _type): value(_value), type(_type){}
-    operator int () const {return value;}
-    Type get_type () const {return type;}
+    genericDescriptor (Type _type = Type::UNKNOWN);
+    genericDescriptor (int _value, Type _type);
+    operator int () const;
+    Type get_type () const;
     private:
         Type type;
 };
@@ -51,26 +47,26 @@ struct std::hash<genericDescriptor>
 
 struct fileD_t : genericDescriptor
 {
-    fileD_t () : genericDescriptor(Type::KERNEL){}
-    fileD_t (int value) : genericDescriptor(value, Type::KERNEL){}
+    fileD_t ();
+    fileD_t (int value);
 };
 
 struct userD_t : genericDescriptor
 {
-    userD_t () : genericDescriptor(Type::USER){}
-    userD_t (int value) : genericDescriptor(value, Type::USER){}
+    userD_t ();
+    userD_t (int value);
 };
 
 struct signalD_t : genericDescriptor
 {
-    signalD_t () : genericDescriptor(Type::SIGNAL){}
-    signalD_t (int value) : genericDescriptor(value, Type::SIGNAL){}
+    signalD_t ();
+    signalD_t (int value);
 };
 
 struct timerD_t : genericDescriptor
 {
-    timerD_t () : genericDescriptor(Type::TIMER){}
-    timerD_t (int value) : genericDescriptor(value, Type::SIGNAL){}
+    timerD_t ();
+    timerD_t (int value);
 };
 
 enum class EVFILT: short

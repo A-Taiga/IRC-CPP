@@ -1,9 +1,6 @@
 #include "server.hpp"
 #include "kqueue.hpp"
 #include <__functional/bind.h>
-#include <cstdlib>
-#include <exception>
-#include <future>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <stdexcept>
@@ -15,7 +12,6 @@
 #include <arpa/inet.h>
 #include <iostream>
 #include <format>
-#include <signal.h>
 
 #define CLEAR   "\e[2J\e[3J\e[H"
 #define BLACK   "\x1B[30;1m"

@@ -2,12 +2,34 @@
 #include <_stdio.h>
 #include <cstdlib>
 #include <cstring>
-#include <exception>
-#include <format>
 #include <sys/event.h>
 #include <unistd.h>
 #include <iostream>
-#include <utility>
+#include <format>
+
+
+genericDescriptor::genericDescriptor (Type _type): type(_type) {}
+genericDescriptor::genericDescriptor (int _value, Type _type): value(_value), type(_type){}
+genericDescriptor:: operator int () const {return value;}
+Type genericDescriptor::get_type () const {return type;}
+
+
+
+fileD_t::fileD_t () : genericDescriptor(Type::KERNEL){}
+fileD_t::fileD_t (int value) : genericDescriptor(value, Type::KERNEL){}
+
+
+userD_t::userD_t () : genericDescriptor(Type::USER){}
+userD_t::userD_t (int value) : genericDescriptor(value, Type::USER){}
+
+
+signalD_t::signalD_t () : genericDescriptor(Type::SIGNAL){}
+signalD_t::signalD_t (int value) : genericDescriptor(value, Type::SIGNAL){}
+
+timerD_t::timerD_t () : genericDescriptor(Type::TIMER){}
+timerD_t::timerD_t (int value) : genericDescriptor(value, Type::SIGNAL){}
+
+
 
 
 Kqueue::Kqueue(timespec _timeout)
@@ -152,7 +174,7 @@ void Kqueue::unregister_signal (signalD_t ident)
 
     changeList[indexMap[ident]].flags = EV_DELETE;
     ::kevent(kq, &changeList[indexMap[ident]], 1, nullptr, 0, &timeout);
-    
+
     std::swap(changeList[indexMap[ident]], changeList.back());
     changeList.pop_back();
     indexMap.erase(ident);
