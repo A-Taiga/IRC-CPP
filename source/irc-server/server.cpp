@@ -1,5 +1,5 @@
 #include "server.hpp"
-#include "kqueue.hpp"
+#include "event_handler.hpp"
 #include <__functional/bind.h>
 #include <netdb.h>
 #include <netinet/in.h>
@@ -32,10 +32,10 @@
 #define B_MAGENTA  "\x1B[45;1m"
 #define B_CYAN     "\x1B[46;1m"
 #define B_WHITE    "\x1B[47;1m"
-void server_callback (struct kevent* event, Server& server);
 
 namespace
 {
+
     void* in_addr (sockaddr* sa)
     {
         switch (sa->sa_family)
@@ -54,36 +54,20 @@ namespace
     }
 }
 
-static int clientNumber = 0;
-static int clientDNumber = 0;
-
-
-
-
 Server::Server (const char* _port)
-: kq ({5,0})
-, serverData {[&](auto&& arg){this->server_callback(arg);}}
-, clientData {[&](auto&& arg){this->client_callback(arg);}}
-, userData {[&] (auto&& arg) {this->userData_callback(arg);}}
+: event_handler({0,1})
 , port (_port)
+, serverData {[&](auto&& arg) {server_callback(arg);}}
+, clientData ([&](auto&& arg) {client_callback(arg);})
 {
     setup();
-    kq.register_kEvent(listenSocket, EVFILT::READ, EV_ADD, 0, serverData);
-    static auto l = [&](auto&& arg)
-    {
-        std::cout << arg->data << std::endl;
-    };
-    static Udata d = {l};
-    kq.register_timer_milliseconds(1, 500, d);
-
+    event_handler.add_read(listenSocket, serverData);
 }
 
 Server::~Server ()
 {
     close(listenSocket);
 }
-
-
 
 void Server::setup ()
 {
@@ -135,7 +119,7 @@ void Server::run ()
 {
     while (true)
     {
-        kq.handle_events();
+        event_handler.poll();
     }
 }
 
@@ -143,6 +127,7 @@ void Server::listen (int qSize)
 {
     if (::listen(listenSocket, qSize) == -1)
         throw Server_Error(std::strerror(errno));
+    
     std::cout << GREEN << "server is listening on port: " << WHITE << port << RESET << std::endl;
 }
 
@@ -159,18 +144,21 @@ void Server::accept ()
         throw Server_Error(std::strerror(errno));
     
     clientAddress = address(connection);
-    kq.register_kEvent(clientFd, EVFILT::READ, EV_ADD, 0, clientData);
-    std::cout << "[" << clientNumber++ << "] " << GREEN << "CLIENT CONNECTED" << RESET << std::endl;
-
+    event_handler.add_read(clientFd, clientData);
+    std::cout << GREEN << "CLIENT CONNECTED" << RESET << std::endl;
 }
 
-void Server::client_callback (struct kevent* event)
+void Server::server_callback (struct kevent64_s* event)
+{
+    accept();
+}
+
+void Server::client_callback (struct kevent64_s* event)
 {
     std::cout << "CLIENT ";
     if (event->flags & EV_EOF)
     {
-        kq.unregister_kEvent(event->ident);
-        std::cout << "[" << clientDNumber++ << "] " << RED << "DISCONNECTED" << RESET << std::endl;
+        std::cout << RED << "DISCONNECTED" << RESET << std::endl;
         close(event->ident);
     }
     else
@@ -183,23 +171,15 @@ void Server::client_callback (struct kevent* event)
     }
 }
 
-void Server::server_callback (struct kevent* event)
-{
-    accept();
-}
-
-void Server::userData_callback (struct kevent* event)
-{
-    std::cout << "HELLO FROM USER LAND!!!!" << std::endl;
-}
-
 Server_Error::Server_Error (std::string msg, std::source_location location)
-: message (std::format("{}:{} {}", location.file_name(), location.line(), msg))
-{}
+{
+    message = std::format("{}:{} {}", location.file_name(), location.line(), msg);
+}
 
 Server_Error::Server_Error (std::source_location location)
-: message (std::format("{}:{}", location.file_name(), location.line()))
-{}
+{
+    message = (std::format("{}:{}", location.file_name(), location.line()));
+}
 
 const char* Server_Error::what() const noexcept
 {

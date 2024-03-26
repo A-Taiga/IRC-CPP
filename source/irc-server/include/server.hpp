@@ -1,13 +1,10 @@
+#include "event_handler.hpp"
 #include <exception>
 #include <source_location>
+#include <sys/event.h>
+
 #ifndef SERVER_HPP
-#include <string>
-
-#if defined(__linux__)
-
-#elif defined(__APPLE__) | defined (BSD)
-    #include "kqueue.hpp"
-#endif
+#define SERVER_HPP
 
 class Server
 {
@@ -18,22 +15,15 @@ public:
     void listen (int qSize);
 
 private:
-#if defined(__linux__)
-
-#elif defined(__APPLE__) | defined (BSD)
-    Kqueue kq;
-    Udata serverData;
-    Udata clientData;
-    Udata userData;
-#endif
-
+    EV::Event event_handler;
     std::string port;
+    EV::Udata serverData;
+    EV::Udata clientData;
     int listenSocket;
     void setup ();
     void accept ();
-    void client_callback(struct kevent* event);
-    void server_callback (struct kevent* event);
-    void userData_callback (struct kevent* event);
+    void server_callback (struct kevent64_s* ev);
+    void client_callback (struct kevent64_s* ev);
 };
 
 class Server_Error : std::exception
