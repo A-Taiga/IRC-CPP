@@ -1,9 +1,12 @@
 #include "server.hpp"
-#include "kqueue.hpp"
+#include "event_handler.hpp"
+#include <__functional/bind.h>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <stdexcept>
 #include <strings.h>
 #include <sys/event.h>
+#include <sys/signal.h>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <arpa/inet.h>
@@ -30,9 +33,9 @@
 #define B_CYAN     "\x1B[46;1m"
 #define B_WHITE    "\x1B[47;1m"
 
-
 namespace
 {
+
     void* in_addr (sockaddr* sa)
     {
         switch (sa->sa_family)
@@ -52,12 +55,13 @@ namespace
 }
 
 Server::Server (const char* _port)
-: port(_port)
+: event_handler({0,1})
+, port (_port)
+, serverData {[&](auto&& arg) {server_callback(arg);}}
+, clientData ([&](auto&& arg) {client_callback(arg);})
 {
     setup();
-
-    static Udata data = {[&](struct kevent* event){this->server_callback(event);}, Tag::SOCKET};
-    kq.add_fd(listenSocket, EVFILT_READ, &data, EV_ADD | EV_ENABLE, 0);
+    event_handler.add_read(listenSocket, serverData);
 }
 
 Server::~Server ()
@@ -80,18 +84,18 @@ void Server::setup ()
 
     status = getaddrinfo(nullptr, port.c_str(), &hints, &tempInfo);
     if (status != 0)
-        throw std::runtime_error(std::format("Line: {} : {}", __LINE__, gai_strerror(status)));
+        throw Server_Error(gai_strerror(status));
 
     serverInfo = tempInfo;
     while (serverInfo != nullptr)
     {
         listenSocket = socket(serverInfo->ai_family, serverInfo->ai_socktype, serverInfo->ai_protocol);
         if (listenSocket == -1)
-            throw std::runtime_error(std::format("Line: {} : {}", __LINE__, std::strerror(errno)));
+            throw Server_Error(std::strerror(errno));
 
         status = setsockopt(listenSocket, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option));
         if (status == -1)
-            throw std::runtime_error(std::format("Line: {} : {}", __LINE__, std::strerror(errno)));
+            throw Server_Error(std::strerror(errno));
         
         status = bind(listenSocket, serverInfo->ai_addr, serverInfo->ai_addrlen);
         if (status == -1)
@@ -106,25 +110,24 @@ void Server::setup ()
 
     freeaddrinfo(tempInfo);
     if (serverInfo == nullptr)
-        throw std::runtime_error("failed to bind");
+        throw Server_Error("failed to bind");
     
     std::cout << GREEN << "server bound" << RESET << std::endl;
-
 }
 
 void Server::run ()
 {
     while (true)
     {
-        kq.handle_events();
-        std::cout << "HI" << std::endl;
+        event_handler.poll();
     }
 }
 
 void Server::listen (int qSize)
 {
     if (::listen(listenSocket, qSize) == -1)
-        throw std::runtime_error(std::format("Line: {} : {}", __LINE__, std::strerror(errno)));
+        throw Server_Error(std::strerror(errno));
+    
     std::cout << GREEN << "server is listening on port: " << WHITE << port << RESET << std::endl;
 }
 
@@ -133,59 +136,52 @@ void Server::accept ()
     std::string clientAddress = {};
     sockaddr_storage connection = {};
     socklen_t connectionSize = 0;
-    auto callBack = [&](auto&& event) {this->client_callback(event);};
     int clientFd = 0;
 
     connectionSize = sizeof(connection);
     clientFd = ::accept (listenSocket, reinterpret_cast<sockaddr*>(&connection), &connectionSize);
-
-    try
-    {
-        if (clientFd == -1)
-            throw std::runtime_error(std::format("Line: {} : {}", __LINE__, std::strerror(errno)));
-    } 
-    catch (std::runtime_error& e)
-    {
-        std::cout << e.what() << std::endl;
-    }
-
+    if (clientFd == -1)
+        throw Server_Error(std::strerror(errno));
+    
     clientAddress = address(connection);
-    std::cout << clientAddress << std::endl;
-    static Udata data = {callBack, Tag::SOCKET};
-    kq.add_fd(clientFd, EVFILT_READ, &data, EV_ADD, 0);
+    event_handler.add_read(clientFd, clientData);
+    std::cout << GREEN << "CLIENT CONNECTED" << RESET << std::endl;
 }
 
-void Server::client_callback (struct kevent* event)
+void Server::server_callback (struct kevent64_s* event)
+{
+    accept();
+}
+
+void Server::client_callback (struct kevent64_s* event)
 {
     std::cout << "CLIENT ";
-        if (event->flags & EV_ERROR)
-        {
-            std::cout << std::strerror(errno) << std::endl;
-        }
-        else if (event->flags & EV_EOF)
-        {
-            kq.remove_fd(event->ident);
-            std::cout << "DISSCONNECTED" << std::endl;
-        }
-        else if (event->flags & EV_ADD)
-        {
-            char buffer[1024];
-            bzero(buffer, sizeof(buffer));
-            std::cout << "SENDING DATA" << std::endl;
-            ::recv(event->ident, buffer, sizeof(buffer), 0);
-            std::cout << buffer;
-        }
-}
-
-void Server::server_callback (struct kevent* event)
-{
-    std::cout << "SOCKET EVENT" << std::endl;
-    if (event->flags & EV_ERROR)
+    if (event->flags & EV_EOF)
     {
-        std::cout << std::strerror(errno) << std::endl;
+        std::cout << RED << "DISCONNECTED" << RESET << std::endl;
+        close(event->ident);
     }
     else
     {
-        accept();
+        char buffer[1024];
+        bzero(buffer, sizeof(buffer));
+        std::cout << "SENDING DATA" << std::endl;
+        ::recv(event->ident, buffer, sizeof(buffer), 0);
+        puts(buffer);
     }
+}
+
+Server_Error::Server_Error (std::string msg, std::source_location location)
+{
+    message = std::format("{}:{} {}", location.file_name(), location.line(), msg);
+}
+
+Server_Error::Server_Error (std::source_location location)
+{
+    message = (std::format("{}:{}", location.file_name(), location.line()));
+}
+
+const char* Server_Error::what() const noexcept
+{
+    return message.c_str();
 }
