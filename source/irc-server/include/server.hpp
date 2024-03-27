@@ -1,7 +1,6 @@
 #include "event_handler.hpp"
 #include <exception>
 #include <source_location>
-#include <sys/event.h>
 
 #ifndef SERVER_HPP
 #define SERVER_HPP
@@ -22,8 +21,8 @@ private:
     int listenSocket;
     void setup ();
     void accept ();
-    void server_callback (struct kevent64_s* ev);
-    void client_callback (struct kevent64_s* ev);
+    void server_callback (event_struct* event, int fd);
+    void client_callback (event_struct* event, int fd);
 };
 
 class Server_Error : std::exception

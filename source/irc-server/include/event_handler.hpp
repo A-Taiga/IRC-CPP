@@ -6,16 +6,29 @@
 #include <exception>
 #include <string>
 #include <functional>
+#include <sys/epoll.h>
 
-#include <sys/event.h>
 
-typedef struct kevent64_s kevent64_s;
+#if defined (__APPLE__) || defined (__BSD__)
+	typedef struct kevent64_s kevent64_s;
+	typedef kevent64_s event_struct;
+#endif
+
+
+#if defined (__linux__)
+	typedef struct epoll_event event_struct;
+#endif
 
 namespace EV
 {
  	struct Udata
     {
-        std::function <void(kevent64_s*)> callback;
+		#if defined (__APPLE__) || defined (__BSD__)
+        	std::function <void(kevent64_s*)> callback;
+		#elif defined (__linux__)
+        	std::function <void(event_struct*, int)> callback;
+		#endif
+		int fd;
     };
 
 	class Parent_handler
@@ -24,7 +37,7 @@ namespace EV
 			int fileDescriptor;
 		public:
 			Parent_handler (int _fileDescriptor);
-			virtual void add_read (int fd, const Udata& udata) = 0;
+			virtual void add_read (int fd, Udata& udata) = 0;
 			virtual void poll() = 0;
 	};
 
@@ -65,15 +78,31 @@ namespace EV
 };
 #endif /* __APPLE__ || __BSD__ */
 
+
 #if defined (__linux__)
-namespace EPOLL
+namespace EP
 {
 	class Epoll : public EV::Parent_handler
 	{
-
+		private:
+		timespec timeout;
+		public:
+		Epoll (timespec _timeout);
+		void add_read(int fd, EV::Udata& udata);
+		void poll();
 	};
 };
-#endif /* __linux__ */
 
+
+namespace EV
+{
+	class Event : public EP::Epoll
+	{
+		public:
+		Event(timespec timeout);
+	};
+
+};
+#endif /* __linux__ */
 
 #endif /* EVENT_HANDLER_HPP */

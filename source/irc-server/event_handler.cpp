@@ -1,6 +1,7 @@
 #include "event_handler.hpp"
+#include <cstdint>
+#include <ctime>
 #include <format>
-
 namespace EV
 {
 	Parent_handler::Parent_handler (int _fileDescriptor)
@@ -14,7 +15,9 @@ namespace EV
     #endif
 
     #if defined (__linux__)
-    /* put epoll here */
+    Event::Event(timespec timeout)
+    : EP::Epoll(timeout)
+    {}
     #endif
 
 	Error::Error (const char* msg, const std::source_location& loc)
@@ -89,3 +92,49 @@ namespace KQ
 
 }
 #endif /* __APPLE__ || __BSD__ */
+
+#if defined (__linux__)
+#include <sys/epoll.h>
+#include <cstring>
+namespace EP
+{
+    Epoll::Epoll(timespec timeout)
+    : EV::Parent_handler(::epoll_create1(0))
+    , timeout(timeout)
+    {
+        if (fileDescriptor == -1)
+            throw EV::Error(std::strerror(errno));
+    }
+
+    void Epoll::add_read(int fd, EV::Udata& udata)
+    {
+        epoll_event ev = {};
+        ev.events = EPOLLIN | EPOLLRDHUP | EPOLLET;
+        udata.fd = fd;
+        ev.data.u64 = (uint64_t)&udata;
+        int ret = epoll_ctl(fileDescriptor, EPOLL_CTL_ADD, fd, &ev);
+        if (ret == -1)
+            throw EV::Error(std::strerror(errno));
+
+    }
+
+    void Epoll::poll()
+    {
+        using namespace EV;
+        const std::size_t MAX_EVENTS = 10000;
+        epoll_event eventList[MAX_EVENTS];
+        std::size_t N;
+        N = epoll_wait(fileDescriptor, eventList, MAX_EVENTS, 0);
+        if (N == -1)
+            throw EV::Error (std::strerror(errno));
+        for (std::size_t i = 0; i < N; i++)
+        {
+            epoll_event* ev = &eventList[i];
+            EV::Udata *udata = (EV::Udata*) ev->data.u64;
+            udata->callback(ev, udata->fd);
+        }
+    }
+}
+
+
+#endif /* __linux__ */
