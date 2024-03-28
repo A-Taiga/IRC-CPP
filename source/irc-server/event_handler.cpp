@@ -1,8 +1,7 @@
 #include "event_handler.hpp"
-#include <ctime>
 #include <format>
-#include <sys/event.h>
-
+#include <sys/epoll.h>
+#include <unistd.h>
 namespace EV
 {
 	EV_Error::EV_Error (const char* msg, const std::source_location& loc)
@@ -38,8 +37,8 @@ namespace EV
 	void Event::poll()
     {
         std::size_t nEvents;
-        struct kevent64_s events[10000];
-        nEvents = ::kevent64(evsfd, nullptr, 0,  events, 10000, 0, &timeout);
+        struct kevent64_s events[MAXEVENTS];
+        nEvents = ::kevent64(evsfd, nullptr, 0,  events, MAXEVENTS, 0, &timeout);
         if (nEvents == -1)
             throw EV_Error (std::strerror(errno));
         for (std::size_t i = 0; i < nEvents; i++)
@@ -51,3 +50,48 @@ namespace EV
     }
 } /* namespace KQ */
 #endif /* __APPLE__ || __BSD__ */
+
+#if defined (__linux__)
+namespace EV
+{
+    bool Event::add_read (fileDescriptor fd, mapKey key)
+    {
+        if (!map.contains(key))
+        {
+            puts("key not found");
+            return false;
+        }
+
+        auto [it, result] = epollMap.emplace(fd, std::move(key));
+        if (!result)
+        {
+            puts("fd is already in map");
+            return false;
+        }
+        struct epoll_event ev = {};
+        ev.events = EPOLLIN | EPOLLRDHUP;
+        ev.data.fd = fd;
+        if (::epoll_ctl(evsfd, EPOLL_CTL_ADD, fd, &ev) == -1)
+            throw EV_Error(std::strerror(errno));
+        return true;
+    }
+    void Event::poll()
+    {
+        std::size_t nEvents;
+        struct epoll_event events[MAXEVENTS];
+        nEvents = epoll_wait(evsfd, events, MAXEVENTS, timeout.tv_sec);
+
+        if (nEvents == -1)
+            throw EV_Error(std::strerror(errno));
+        
+        for (std::size_t i = 0; i < nEvents; i++)
+        {
+            struct epoll_event* ev = &events[i];
+            map[epollMap[ev->data.fd]].callback({ev->events, (uint64_t)ev->data.fd});
+            if (ev->events & EPOLLRDHUP)
+                epollMap.erase(ev->data.fd);
+        }
+    }
+}
+
+#endif /* __linux__ */

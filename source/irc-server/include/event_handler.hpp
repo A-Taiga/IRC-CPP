@@ -9,13 +9,13 @@
 #include <unordered_map>
 #include <tuple>
 #include <cassert>
+#include <cstdint>
+#include <cstring>
 
 
-
-
+#define MAXEVENTS 30000
 namespace EV
 {
-
 	using fileDescriptor = uint64_t;
 	struct event_data
 	{
@@ -29,7 +29,6 @@ namespace EV
 	struct Udata
 	{
 		callable callback;
-		fileDescriptor fd;
 	};
 
 	class Event_Interface
@@ -37,6 +36,7 @@ namespace EV
 		protected:
 			fileDescriptor evsfd;
 			std::unordered_map<mapKey, Udata> map;
+
 		public:
 			Event_Interface (fileDescriptor, const std::same_as<tupeType> auto&& ...);
 			virtual bool add_read (fileDescriptor, mapKey) = 0;
@@ -55,24 +55,40 @@ namespace EV
 } /* namesapce EV*/
 
 
+
 #if defined (__APPLE__) || defined (__BSD__)
-#include <sys/event.h>
+	#include <sys/event.h>
+	#define EVENT_SYSTEM ::kqueue()
+	namespace EV
+	{	
+		constexpr uint32_t END = (uint32_t)EV_EOF;
+	}
+#elif defined (__linux__)
+	#include <sys/epoll.h>
+	#define EVENT_SYSTEM ::epoll_create1(0)
+	namespace EV
+	{	
+		constexpr uint32_t END = (uint32_t)EPOLLRDHUP;
+	}
+
+#endif
 
 namespace EV
 {
-	constexpr uint32_t END = (uint32_t)EV_EOF;
+	
 	class Event : public EV::Event_Interface
 	{
 		private:
 		timespec timeout;
+		#if defined(__linux__)
+			std::unordered_map<fileDescriptor, std::string> epollMap;
+		#endif
 		public:	
 			Event (timespec _timeout, const std::same_as <tupeType> auto&& ... f);
     		virtual bool add_read (fileDescriptor, mapKey);
 			virtual void poll();
 	};
-} /* namespace KQ */
-#endif /* __APPLE__ || __BSD__ */
-
+} /* namespace EV */
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 inline EV::Event_Interface::Event_Interface (fileDescriptor fd, const std::same_as <tupeType> auto&& ... f)
@@ -86,14 +102,14 @@ inline EV::Event_Interface::Event_Interface (fileDescriptor fd, const std::same_
 	(l(f),...);
 }
 
-
 inline EV::Event::Event (timespec _timeout, const std::same_as <tupeType> auto&& ... f)
 : timeout(_timeout)
-, Event_Interface(::kqueue(), std::forward<const tupeType&&>(f)...)
+, Event_Interface(EVENT_SYSTEM, std::forward<const tupeType&&>(f)...)
 {
 	if (evsfd == -1)
 		throw EV_Error(std::strerror(errno));
 }
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 #endif /* EVENT_HANDLER_HPP */
 
