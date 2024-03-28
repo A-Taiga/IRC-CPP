@@ -13,6 +13,25 @@
 #include <cstring>
 
 
+
+#if defined (__APPLE__) || defined (__BSD__)
+	#include <sys/event.h>
+	#define EVENT_SYSTEM ::kqueue()
+	namespace EV
+	{	
+		constexpr uint32_t END = (uint32_t)EV_EOF;
+	}
+#elif defined (__linux__)
+	#include <sys/epoll.h>
+	#define EVENT_SYSTEM ::epoll_create1(0)
+	namespace EV
+	{	
+		constexpr uint32_t END = (uint32_t)EPOLLRDHUP;
+	}
+
+#endif
+
+
 #define MAXEVENTS 30000
 namespace EV
 {
@@ -53,25 +72,6 @@ namespace EV
 			virtual const char* what() noexcept;
 	};
 } /* namesapce EV*/
-
-
-
-#if defined (__APPLE__) || defined (__BSD__)
-	#include <sys/event.h>
-	#define EVENT_SYSTEM ::kqueue()
-	namespace EV
-	{	
-		constexpr uint32_t END = (uint32_t)EV_EOF;
-	}
-#elif defined (__linux__)
-	#include <sys/epoll.h>
-	#define EVENT_SYSTEM ::epoll_create1(0)
-	namespace EV
-	{	
-		constexpr uint32_t END = (uint32_t)EPOLLRDHUP;
-	}
-
-#endif
 
 namespace EV
 {
