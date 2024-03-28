@@ -2,6 +2,7 @@
 #include "event_handler.hpp"
 #include <netdb.h>
 #include <netinet/in.h>
+#include <ostream>
 #include <strings.h>
 #include <sys/signal.h>
 #include <sys/socket.h>
@@ -144,7 +145,7 @@ void Server::accept ()
     
     clientAddress = address(connection);
     event_handler.add_read(clientFd, "clientSocket");
-    std::cout << GREEN << "CLIENT CONNECTED" << RESET << std::endl;
+    std::cout << CYAN "CLIENT FD: " << clientFd << " : " << GREEN << "CLIENT CONNECTED" << RESET << std::endl;
 }
 
 void Server::server_callback (const EV::event_data&&)
@@ -152,9 +153,21 @@ void Server::server_callback (const EV::event_data&&)
     accept();
 }
 
-void Server::client_callback (const EV::event_data&&)
+void Server::client_callback (const EV::event_data&& ev)
 {
-    
+    std::cout << CYAN << "CLIENT FD: " RESET << ev.fd << " : ";
+    if (ev.flags & EV::END)
+    {
+        std::cout << RED << "DISCONNECTED" << RESET << std::endl;
+        close (ev.fd);
+    }
+    else
+    {
+        char buffer[1024];
+        bzero(buffer, sizeof(buffer));
+        ::recv(ev.fd, buffer, sizeof(buffer), 0);
+        std::cout << YELLOW << "DATA: " << RESET << buffer;
+    }
 }
 
 Server_Error::Server_Error (std::string msg, std::source_location location)

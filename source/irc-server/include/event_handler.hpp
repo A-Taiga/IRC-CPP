@@ -15,6 +15,7 @@
 
 namespace EV
 {
+
 	using fileDescriptor = uint64_t;
 	struct event_data
 	{
@@ -56,8 +57,10 @@ namespace EV
 
 #if defined (__APPLE__) || defined (__BSD__)
 #include <sys/event.h>
+
 namespace EV
 {
+	constexpr uint32_t END = (uint32_t)EV_EOF;
 	class Event : public EV::Event_Interface
 	{
 		private:
@@ -69,7 +72,6 @@ namespace EV
 	};
 } /* namespace KQ */
 #endif /* __APPLE__ || __BSD__ */
-
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

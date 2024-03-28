@@ -12,7 +12,6 @@ public:
     ~Server ();
     void run ();
     void listen (int qSize);
-
 private:
     EV::Event event_handler;
     std::string port;
