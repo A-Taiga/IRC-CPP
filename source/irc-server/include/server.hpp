@@ -21,8 +21,8 @@ private:
     int listenSocket;
     void setup ();
     void accept ();
-    void server_callback (event_struct* event, int fd);
-    void client_callback (event_struct* event, int fd);
+    void server_callback (const EV::event_data&&);
+    void client_callback (const EV::event_data&&);
 };
 
 class Server_Error : std::exception

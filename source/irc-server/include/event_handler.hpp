@@ -6,103 +6,93 @@
 #include <exception>
 #include <string>
 #include <functional>
-#include <sys/epoll.h>
+#include <unordered_map>
+#include <tuple>
+#include <cassert>
 
 
-#if defined (__APPLE__) || defined (__BSD__)
-	typedef struct kevent64_s kevent64_s;
-	typedef kevent64_s event_struct;
-#endif
 
-
-#if defined (__linux__)
-	typedef struct epoll_event event_struct;
-#endif
 
 namespace EV
 {
- 	struct Udata
-    {
-		#if defined (__APPLE__) || defined (__BSD__)
-        	std::function <void(kevent64_s*)> callback;
-		#elif defined (__linux__)
-        	std::function <void(event_struct*, int)> callback;
-		#endif
-		int fd;
-    };
-
-	class Parent_handler
+	using fileDescriptor = uint64_t;
+	struct event_data
 	{
-		protected:
-			int fileDescriptor;
-		public:
-			Parent_handler (int _fileDescriptor);
-			virtual void add_read (int fd, Udata& udata) = 0;
-			virtual void poll() = 0;
+		uint32_t flags;
+		fileDescriptor fd;
 	};
 
-	class Error : public std::exception
-    {
-        private:
-            std::string message;
-        public:
-            Error (const char* msg, const std::source_location& = std::source_location::current());
-            Error (const std::source_location& = std::source_location::current());
-            virtual const char* what() noexcept;
-    };
-};
+	using callable = std::function<void(const event_data&&)>;
+	using mapKey = std::string;
+	using tupeType = std::tuple<std::string, callable>;
+	struct Udata
+	{
+		callable callback;
+		fileDescriptor fd;
+	};
+
+	class Event_Interface
+	{
+		protected:
+			fileDescriptor evsfd;
+			std::unordered_map<mapKey, Udata> map;
+		public:
+			Event_Interface (fileDescriptor, const std::same_as<tupeType> auto&& ...);
+			virtual bool add_read (fileDescriptor, mapKey) = 0;
+			virtual void poll() = 0;
+	};
+	
+	class EV_Error : public std::exception
+	{
+		private:
+			std::string message;
+		public:
+			EV_Error (const char* msg, const std::source_location& = std::source_location::current());
+			EV_Error (const std::source_location& = std::source_location::current());
+			virtual const char* what() noexcept;
+	};
+} /* namesapce EV*/
+
 
 #if defined (__APPLE__) || defined (__BSD__)
-	#include <sys/event.h>
-
-namespace KQ 
+#include <sys/event.h>
+namespace EV
 {
-    class Kqueue : public EV::Parent_handler
-    {
-        private:
-        timespec timeout;
-        public:
-        Kqueue (timespec _timeout);
-        void add_read(int fd, const EV::Udata& udata);
-        void poll();
-    };
-}
-
-namespace EV 
-{
-		class Event : public KQ::Kqueue
-		{
-			public:
-			Event (timespec timeout);
-		};
-};
-#endif /* __APPLE__ || __BSD__ */
-
-
-#if defined (__linux__)
-namespace EP
-{
-	class Epoll : public EV::Parent_handler
+	class Event : public EV::Event_Interface
 	{
 		private:
 		timespec timeout;
-		public:
-		Epoll (timespec _timeout);
-		void add_read(int fd, EV::Udata& udata);
-		void poll();
+		public:	
+			Event (timespec _timeout, const std::same_as <tupeType> auto&& ... f);
+    		virtual bool add_read (fileDescriptor, mapKey);
+			virtual void poll();
 	};
-};
+} /* namespace KQ */
+#endif /* __APPLE__ || __BSD__ */
 
 
-namespace EV
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+inline EV::Event_Interface::Event_Interface (fileDescriptor fd, const std::same_as <tupeType> auto&& ... f)
+: evsfd (fd)
 {
-	class Event : public EP::Epoll
+	auto l = [&] (auto&& arg)
 	{
-		public:
-		Event(timespec timeout);
+		auto [it, result] = map.emplace (get<0>(arg), Udata{get<1>(arg)});
+		assert (result);
 	};
+	(l(f),...);
+}
 
-};
-#endif /* __linux__ */
 
+inline EV::Event::Event (timespec _timeout, const std::same_as <tupeType> auto&& ... f)
+: timeout(_timeout)
+, Event_Interface(::kqueue(), std::forward<const tupeType&&>(f)...)
+{
+	if (evsfd == -1)
+		throw EV_Error(std::strerror(errno));
+}
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 #endif /* EVENT_HANDLER_HPP */
+
+

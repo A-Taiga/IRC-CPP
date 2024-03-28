@@ -10,6 +10,7 @@
 #include <iostream>
 #include <format>
 #include <cstring>
+#include <string>
 
 #define CLEAR   "\e[2J\e[3J\e[H"
 #define BLACK   "\x1B[30;1m"
@@ -53,13 +54,13 @@ namespace
 }
 
 Server::Server (const char* _port)
-: event_handler({0,1})
-, port (_port)
-, serverData {[&](auto&& arg, auto&& arg2) {server_callback(arg, arg2);}}
-, clientData ([&](auto&& arg, auto&& arg2) {client_callback(arg, arg2);})
+: port (_port)
+, event_handler({5,0}
+                , EV::tupeType("serverSocket", [&](auto&& arg){server_callback(std::move(arg));})
+                , EV::tupeType("clientSocket", [&](auto&& arg){client_callback(std::move(arg));}))
 {
     setup();
-    event_handler.add_read(listenSocket, serverData);
+    event_handler.add_read(listenSocket, "serverSocket");
 }
 
 Server::~Server ()
@@ -142,46 +143,18 @@ void Server::accept ()
         throw Server_Error(std::strerror(errno));
     
     clientAddress = address(connection);
-    event_handler.add_read(clientFd, clientData);
+    event_handler.add_read(clientFd, "clientSocket");
     std::cout << GREEN << "CLIENT CONNECTED" << RESET << std::endl;
 }
 
-void Server::server_callback (event_struct* event, int fd)
+void Server::server_callback (const EV::event_data&&)
 {
     accept();
 }
 
-void Server::client_callback (event_struct* event, int fd)
+void Server::client_callback (const EV::event_data&&)
 {
-    std::cout << "CLIENT ";
-    if (event->events & EPOLLRDHUP)
-    {
-        std::cout << RED << "DISCONNECTED" << RESET << std::endl;
-        close(fd);
-    }
-    else if (event->events & EPOLLIN)
-    {
-        char buffer[1024];
-        bzero(buffer, sizeof(buffer));
-        std::cout << "SENDING DATA" << std::endl;
-        ::recv(fd, buffer, sizeof(buffer), 0);
-        puts(buffer);
-    }
-    // printf("client: %08u\n", event->events);
-    // std::cout << "CLIENT ";
-    // if (event->flags & EV_EOF)
-    // {
-    //     std::cout << RED << "DISCONNECTED" << RESET << std::endl;
-    //     close(event->ident);
-    // }
-    // else
-    // {
-    //     char buffer[1024];
-    //     bzero(buffer, sizeof(buffer));
-    //     std::cout << "SENDING DATA" << std::endl;
-    //     ::recv(event->ident, buffer, sizeof(buffer), 0);
-    //     puts(buffer);
-    // }
+    
 }
 
 Server_Error::Server_Error (std::string msg, std::source_location location)
