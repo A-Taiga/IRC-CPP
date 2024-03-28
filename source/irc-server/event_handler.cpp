@@ -1,6 +1,5 @@
 #include "event_handler.hpp"
 #include <format>
-#include <sys/epoll.h>
 #include <unistd.h>
 namespace EV
 {
